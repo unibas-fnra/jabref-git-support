@@ -7,7 +7,6 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.cell.CheckBoxTableCell;
 
-import org.jabref.gui.Globals;
 import org.jabref.gui.actions.ActionFactory;
 import org.jabref.gui.actions.SimpleCommand;
 import org.jabref.gui.actions.StandardActions;
@@ -87,7 +86,7 @@ public class ProtectedTermsTab extends AbstractPreferenceTabView<ProtectedTermsT
     }
 
     private ContextMenu createContextMenu(ProtectedTermsListItemModel file) {
-        ActionFactory factory = new ActionFactory(Globals.getKeyPrefs());
+        ActionFactory factory = new ActionFactory();
         ContextMenu contextMenu = new ContextMenu();
         contextMenu.getItems().addAll(
                 factory.createMenuItem(StandardActions.EDIT_LIST, new ProtectedTermsTab.ContextAction(StandardActions.EDIT_LIST, file)),

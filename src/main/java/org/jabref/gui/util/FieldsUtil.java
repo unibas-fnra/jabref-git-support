@@ -1,8 +1,9 @@
 package org.jabref.gui.util;
 
+import javax.swing.undo.UndoManager;
+
 import javafx.util.StringConverter;
 
-import org.jabref.gui.Globals;
 import org.jabref.gui.specialfields.SpecialFieldViewModel;
 import org.jabref.logic.l10n.Localization;
 import org.jabref.model.entry.field.Field;
@@ -11,10 +12,11 @@ import org.jabref.model.entry.field.IEEEField;
 import org.jabref.model.entry.field.InternalField;
 import org.jabref.model.entry.field.SpecialField;
 import org.jabref.model.entry.field.UnknownField;
+import org.jabref.preferences.PreferencesService;
 
 public class FieldsUtil {
 
-    public static StringConverter<Field> fieldStringConverter = new StringConverter<>() {
+    public static final StringConverter<Field> FIELD_STRING_CONVERTER = new StringConverter<>() {
         @Override
         public String toString(Field object) {
             if (object != null) {
@@ -30,9 +32,9 @@ public class FieldsUtil {
         }
     };
 
-    public static String getNameWithType(Field field) {
-        if (field instanceof SpecialField) {
-            return new SpecialFieldViewModel((SpecialField) field, Globals.prefs, Globals.undoManager).getLocalization()
+    public static String getNameWithType(Field field, PreferencesService preferencesService, UndoManager undoManager) {
+        if (field instanceof SpecialField specialField) {
+            return new SpecialFieldViewModel(specialField, preferencesService, undoManager).getLocalization()
                     + " (" + Localization.lang("Special") + ")";
         } else if (field instanceof IEEEField) {
             return field.getDisplayName() + " (" + Localization.lang("IEEE") + ")";

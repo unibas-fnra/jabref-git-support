@@ -23,10 +23,13 @@ import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceDialog;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.Dialog;
 import javafx.scene.control.DialogPane;
 import javafx.scene.control.Label;
+import javafx.scene.control.TextArea;
 import javafx.scene.control.TextInputDialog;
-import javafx.scene.layout.Pane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.DirectoryChooser;
@@ -34,21 +37,22 @@ import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 import javafx.util.Duration;
+import javafx.util.StringConverter;
 
 import org.jabref.gui.help.ErrorConsoleAction;
 import org.jabref.gui.icon.IconTheme;
-import org.jabref.gui.theme.ThemeManager;
 import org.jabref.gui.util.BackgroundTask;
 import org.jabref.gui.util.BaseDialog;
-import org.jabref.gui.util.DefaultTaskExecutor;
 import org.jabref.gui.util.DirectoryDialogConfiguration;
 import org.jabref.gui.util.FileDialogConfiguration;
+import org.jabref.gui.util.UiTaskExecutor;
 import org.jabref.gui.util.ZipFileChooser;
 import org.jabref.logic.l10n.Localization;
 
 import com.tobiasdiez.easybind.EasyBind;
 import org.controlsfx.control.Notifications;
 import org.controlsfx.control.TaskProgressView;
+import org.controlsfx.control.textfield.CustomPasswordField;
 import org.controlsfx.dialog.ExceptionDialog;
 import org.controlsfx.dialog.ProgressDialog;
 import org.slf4j.Logger;
@@ -71,18 +75,20 @@ public class JabRefDialogService implements DialogService {
     private static final Logger LOGGER = LoggerFactory.getLogger(JabRefDialogService.class);
 
     private final Window mainWindow;
-    private final ThemeManager themeManager;
 
-    public JabRefDialogService(Window mainWindow, Pane mainPane, ThemeManager themeManager) {
+    public JabRefDialogService(Window mainWindow) {
         this.mainWindow = mainWindow;
-        this.themeManager = themeManager;
     }
 
     private FXDialog createDialog(AlertType type, String title, String content) {
         FXDialog alert = new FXDialog(type, title, true);
         alert.setHeaderText(null);
-        alert.setContentText(content);
         alert.getDialogPane().setMinHeight(Region.USE_PREF_SIZE);
+        alert.setResizable(true);
+
+        TextArea area = new TextArea(content);
+
+        alert.getDialogPane().setContent(area);
         alert.initOwner(mainWindow);
         return alert;
     }
@@ -126,8 +132,7 @@ public class JabRefDialogService implements DialogService {
         return (dialogMessage.substring(0, Math.min(dialogMessage.length(), JabRefDialogService.DIALOG_SIZE_LIMIT)) + "...").trim();
     }
 
-    @Override
-    public <T> Optional<T> showChoiceDialogAndWait(String title, String content, String okButtonLabel, T defaultChoice, Collection<T> choices) {
+    private <T> ChoiceDialog<T> createChoiceDialog(String title, String content, String okButtonLabel, T defaultChoice, Collection<T> choices) {
         ChoiceDialog<T> choiceDialog = new ChoiceDialog<>(defaultChoice, choices);
         ((Stage) choiceDialog.getDialogPane().getScene().getWindow()).getIcons().add(IconTheme.getJabRefImage());
         ButtonType okButtonType = new ButtonType(okButtonLabel, ButtonBar.ButtonData.OK_DONE);
@@ -136,6 +141,21 @@ public class JabRefDialogService implements DialogService {
         choiceDialog.setTitle(title);
         choiceDialog.setContentText(content);
         choiceDialog.initOwner(mainWindow);
+        return choiceDialog;
+    }
+
+    @Override
+    public <T> Optional<T> showChoiceDialogAndWait(String title, String content, String okButtonLabel, T defaultChoice, Collection<T> choices) {
+        return createChoiceDialog(title, content, okButtonLabel, defaultChoice, choices).showAndWait();
+    }
+
+    @Override
+    public <T> Optional<T> showEditableChoiceDialogAndWait(String title, String content, String okButtonLabel, T defaultChoice, Collection<T> choices, StringConverter<T> converter) {
+        ChoiceDialog<T> choiceDialog = createChoiceDialog(title, content, okButtonLabel, defaultChoice, choices);
+        ComboBox<T> comboBox = (ComboBox<T>) choiceDialog.getDialogPane().lookup(".combo-box");
+        comboBox.setEditable(true);
+        comboBox.setConverter(converter);
+        EasyBind.subscribe(comboBox.getEditor().textProperty(), text -> comboBox.setValue(converter.fromString(text)));
         return choiceDialog.showAndWait();
     }
 
@@ -263,7 +283,7 @@ public class JabRefDialogService implements DialogService {
     }
 
     @Override
-    public <R> Optional<R> showCustomDialogAndWait(javafx.scene.control.Dialog<R> dialog) {
+    public <R> Optional<R> showCustomDialogAndWait(Dialog<R> dialog) {
         if (dialog.getOwner() == null) {
             dialog.initOwner(mainWindow);
         }
@@ -271,7 +291,30 @@ public class JabRefDialogService implements DialogService {
     }
 
     @Override
-    public <V> void showProgressDialog(String title, String content, Task<V> task) {
+    public Optional<String> showPasswordDialogAndWait(String title, String header, String content) {
+        Dialog<String> dialog = new Dialog<>();
+        dialog.setTitle(title);
+        dialog.setHeaderText(header);
+
+        CustomPasswordField passwordField = new CustomPasswordField();
+
+        HBox box = new HBox();
+        box.setSpacing(10);
+        box.getChildren().addAll(new Label(content), passwordField);
+        dialog.setTitle(title);
+        dialog.getDialogPane().setContent(box);
+
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.CANCEL, ButtonType.OK);
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == ButtonType.OK) {
+                return passwordField.getText();
+            }
+            return null;
+        });
+        return dialog.showAndWait();
+    }
+
+    private <V> ProgressDialog createProgressDialog(String title, String content, Task<V> task) {
         ProgressDialog progressDialog = new ProgressDialog(task);
         progressDialog.setHeaderText(null);
         progressDialog.setTitle(title);
@@ -287,7 +330,19 @@ public class JabRefDialogService implements DialogService {
             progressDialog.close();
         });
         progressDialog.initOwner(mainWindow);
+        return progressDialog;
+    }
+
+    @Override
+    public <V> void showProgressDialog(String title, String content, Task<V> task) {
+        ProgressDialog progressDialog = createProgressDialog(title, content, task);
         progressDialog.show();
+    }
+
+    @Override
+    public <V> void showProgressDialogAndWait(String title, String content, Task<V> task) {
+        ProgressDialog progressDialog = createProgressDialog(title, content, task);
+        progressDialog.showAndWait();
     }
 
     @Override
@@ -323,9 +378,11 @@ public class JabRefDialogService implements DialogService {
 
     @Override
     public void notify(String message) {
+        // TODO: Change to a notification overview instead of event log when that is available.
+        //       The event log is not that user friendly (different purpose).
         LOGGER.info(message);
 
-        DefaultTaskExecutor.runInJavaFXThread(() -> {
+        UiTaskExecutor.runInJavaFXThread(() -> {
             Notifications.create()
                          .text(message)
                          .position(Pos.BOTTOM_CENTER)
@@ -334,11 +391,10 @@ public class JabRefDialogService implements DialogService {
                          .threshold(5,
                                  Notifications.create()
                                               .title(Localization.lang("Last notification"))
-                                              // TODO: Change to a notification overview instead of event log when that is available. The event log is not that user friendly (different purpose).
                                               .text(
                                                     "(" + Localization.lang("Check the event log to see all notifications") + ")"
                                                      + "\n\n" + message)
-                                              .onAction((e)-> {
+                                              .onAction(e -> {
                                                      ErrorConsoleAction ec = new ErrorConsoleAction();
                                                      ec.execute();
                                                  }))

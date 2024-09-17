@@ -1,8 +1,8 @@
 package org.jabref.gui.entryeditor;
 
-import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.Optional;
-import java.util.Set;
+import java.util.SequencedSet;
 import java.util.stream.Collectors;
 
 import javax.swing.undo.UndoManager;
@@ -14,10 +14,12 @@ import org.jabref.gui.StateManager;
 import org.jabref.gui.autocompleter.SuggestionProviders;
 import org.jabref.gui.icon.IconTheme;
 import org.jabref.gui.theme.ThemeManager;
+import org.jabref.gui.undo.RedoAction;
+import org.jabref.gui.undo.UndoAction;
 import org.jabref.gui.util.TaskExecutor;
 import org.jabref.logic.journals.JournalAbbreviationRepository;
 import org.jabref.logic.l10n.Localization;
-import org.jabref.logic.pdf.search.indexing.IndexingTaskManager;
+import org.jabref.logic.pdf.search.IndexingTaskManager;
 import org.jabref.model.database.BibDatabaseContext;
 import org.jabref.model.database.BibDatabaseMode;
 import org.jabref.model.entry.BibEntry;
@@ -30,11 +32,14 @@ import com.tobiasdiez.easybind.EasyBind;
 
 public class DeprecatedFieldsTab extends FieldsEditorTab {
 
+    public static final String NAME = "Deprecated fields";
     private final BibEntryTypesManager entryTypesManager;
 
     public DeprecatedFieldsTab(BibDatabaseContext databaseContext,
                                SuggestionProviders suggestionProviders,
                                UndoManager undoManager,
+                               UndoAction undoAction,
+                               RedoAction redoAction,
                                DialogService dialogService,
                                PreferencesService preferences,
                                StateManager stateManager,
@@ -43,11 +48,11 @@ public class DeprecatedFieldsTab extends FieldsEditorTab {
                                BibEntryTypesManager entryTypesManager,
                                TaskExecutor taskExecutor,
                                JournalAbbreviationRepository journalAbbreviationRepository) {
-        super(false, databaseContext, suggestionProviders, undoManager, dialogService, preferences, stateManager, themeManager, taskExecutor, journalAbbreviationRepository, indexingTaskManager);
+        super(false, databaseContext, suggestionProviders, undoManager, undoAction, redoAction, dialogService, preferences, stateManager, themeManager, taskExecutor, journalAbbreviationRepository, indexingTaskManager);
         this.entryTypesManager = entryTypesManager;
 
         setText(Localization.lang("Deprecated fields"));
-        EasyBind.subscribe(preferences.getGeneralPreferences().showAdvancedHintsProperty(), advancedHints -> {
+        EasyBind.subscribe(preferences.getWorkspacePreferences().showAdvancedHintsProperty(), advancedHints -> {
             if (advancedHints) {
                 setTooltip(new Tooltip(Localization.lang("Shows fields having a successor in biblatex.\nFor instance, the publication month should be part of the date field.\nUse the Cleanup Entries functionality to convert the entry to biblatex.")));
             } else {
@@ -58,14 +63,14 @@ public class DeprecatedFieldsTab extends FieldsEditorTab {
     }
 
     @Override
-    protected Set<Field> determineFieldsToShow(BibEntry entry) {
+    protected SequencedSet<Field> determineFieldsToShow(BibEntry entry) {
         BibDatabaseMode mode = databaseContext.getMode();
         Optional<BibEntryType> entryType = entryTypesManager.enrich(entry.getType(), mode);
         if (entryType.isPresent()) {
-            return entryType.get().getDeprecatedFields(mode).stream().filter(field -> !entry.getField(field).isEmpty()).collect(Collectors.toSet());
+            return entryType.get().getDeprecatedFields(mode).stream().filter(field -> !entry.getField(field).isEmpty()).collect(Collectors.toCollection(LinkedHashSet::new));
         } else {
-            // Entry type unknown -> treat all fields as required
-            return Collections.emptySet();
+            // Entry type unknown -> treat all fields as required (thus no optional fields)
+            return new LinkedHashSet<>();
         }
     }
 }

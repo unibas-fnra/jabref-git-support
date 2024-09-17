@@ -9,10 +9,11 @@ import org.jabref.model.entry.field.OrFields;
 import org.jabref.model.entry.field.StandardField;
 
 /**
- * This class represents all supported BibTex entry types.
+ * This class represents all supported BibTeX entry types.
+ * It is based on the information of <a href="https://tug.org/texmf-docs/bibtex/btxdoc.pdf">BibTeXing</a>, a manual
+ * by the original BibTeX author. Also enriched by new fields not existing back then (e.g., ISSN).
  * <p>
- * Article, Book, Booklet, Conference, Inbook, Incollection, Inproceedings,
- * Manual, Mastersthesis, Misc, Phdthesis, Proceedings, Techreport, Unpublished
+ * The BibLaTeX entry types are defined at {@link BiblatexEntryTypeDefinitions}.
  */
 public class BibtexEntryTypeDefinitions {
     /**
@@ -71,7 +72,9 @@ public class BibtexEntryTypeDefinitions {
      */
     private static final BibEntryType INBOOK = new BibEntryTypeBuilder()
             .withType(StandardEntryType.InBook)
-            .withRequiredFields(Arrays.asList(new OrFields(StandardField.CHAPTER, StandardField.PAGES), new OrFields(StandardField.AUTHOR, StandardField.EDITOR)), StandardField.TITLE, StandardField.PUBLISHER, StandardField.YEAR)
+            .addRequiredFields(new OrFields(StandardField.AUTHOR, StandardField.EDITOR))
+            .addRequiredFields(StandardField.TITLE, StandardField.PUBLISHER, StandardField.YEAR)
+            .addRequiredFields(new OrFields(StandardField.CHAPTER, StandardField.PAGES))
             .withImportantFields(StandardField.VOLUME, StandardField.NUMBER, StandardField.SERIES, StandardField.TYPE, StandardField.ADDRESS, StandardField.EDITION, StandardField.MONTH, StandardField.ISBN, StandardField.NOTE)
             .build();
 

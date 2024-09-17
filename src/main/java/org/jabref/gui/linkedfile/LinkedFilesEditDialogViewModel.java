@@ -3,7 +3,6 @@ package org.jabref.gui.linkedfile;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Path;
-import java.util.List;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
@@ -24,7 +23,6 @@ import org.jabref.gui.util.FileDialogConfiguration;
 import org.jabref.logic.util.io.FileUtil;
 import org.jabref.model.database.BibDatabaseContext;
 import org.jabref.model.entry.LinkedFile;
-import org.jabref.model.util.FileHelper;
 import org.jabref.preferences.FilePreferences;
 
 import com.tobiasdiez.easybind.EasyBind;
@@ -35,6 +33,7 @@ public class LinkedFilesEditDialogViewModel extends AbstractViewModel {
     private static final Pattern REMOTE_LINK_PATTERN = Pattern.compile("[a-z]+://.*");
     private final StringProperty link = new SimpleStringProperty("");
     private final StringProperty description = new SimpleStringProperty("");
+    private final StringProperty sourceUrl = new SimpleStringProperty("");
     private final ListProperty<ExternalFileType> allExternalFileTypes = new SimpleListProperty<>(FXCollections.emptyObservableList());
     private final ObjectProperty<ExternalFileType> selectedExternalFileType = new SimpleObjectProperty<>();
     private final ObservableOptionalValue<ExternalFileType> monadicSelectedExternalFileType;
@@ -73,7 +72,7 @@ public class LinkedFilesEditDialogViewModel extends AbstractViewModel {
     public void openBrowseDialog() {
         String fileText = link.get();
 
-        Optional<Path> file = FileHelper.find(database, fileText, filePreferences);
+        Optional<Path> file = FileUtil.find(database, fileText, filePreferences);
 
         Path workingDir = file.orElse(filePreferences.getWorkingDirectory());
         String fileName = Path.of(fileText).getFileName().toString();
@@ -94,6 +93,7 @@ public class LinkedFilesEditDialogViewModel extends AbstractViewModel {
 
     public void setValues(LinkedFile linkedFile) {
         description.set(linkedFile.getDescription());
+        sourceUrl.set(linkedFile.getSourceUrl());
 
         if (linkedFile.isOnlineLink()) {
             link.setValue(linkedFile.getLink()); // Might be an URL
@@ -120,6 +120,10 @@ public class LinkedFilesEditDialogViewModel extends AbstractViewModel {
         return description;
     }
 
+    public StringProperty sourceUrlProperty() {
+        return sourceUrl;
+    }
+
     public ListProperty<ExternalFileType> externalFileTypeProperty() {
         return allExternalFileTypes;
     }
@@ -133,16 +137,15 @@ public class LinkedFilesEditDialogViewModel extends AbstractViewModel {
 
         if (LinkedFile.isOnlineLink(link.getValue())) {
             try {
-                return new LinkedFile(description.getValue(), new URL(link.getValue()), fileType);
+                return new LinkedFile(description.getValue(), new URL(link.getValue()), fileType, sourceUrl.getValue());
             } catch (MalformedURLException e) {
-                return new LinkedFile(description.getValue(), link.getValue(), fileType);
+                return new LinkedFile(description.getValue(), link.getValue(), fileType, sourceUrl.getValue());
             }
         }
-        return new LinkedFile(description.getValue(), Path.of(link.getValue()), fileType);
+        return new LinkedFile(description.getValue(), Path.of(link.getValue()), fileType, sourceUrl.getValue());
     }
 
     private String relativize(Path filePath) {
-        List<Path> fileDirectories = database.getFileDirectories(filePreferences);
-        return FileUtil.relativize(filePath, fileDirectories).toString();
+        return FileUtil.relativize(filePath, database, filePreferences).toString();
     }
 }

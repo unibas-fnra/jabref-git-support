@@ -25,7 +25,7 @@ class CitationStyleGeneratorTest {
     private final BibEntryTypesManager bibEntryTypesManager = new BibEntryTypesManager();
 
     @Test
-    void testACMCitation() {
+    void aCMCitation() {
         BibDatabaseContext context = new BibDatabaseContext(new BibDatabase(List.of(TestEntry.getTestEntry())));
         context.setMode(BibDatabaseMode.BIBLATEX);
         List<CitationStyle> styleList = CitationStyle.discoverCitationStyles();
@@ -34,7 +34,7 @@ class CitationStyleGeneratorTest {
 
         // if the acm-siggraph.csl citation style changes this has to be modified
         String expected = "  <div class=\"csl-entry\">"
-                + "<span style=\"font-variant: small-caps\">Smith, B., Jones, B., and Williams, J.</span> 2016-07. Title of the test entry. <span style=\"font-style: italic\">BibTeX Journal</span> <span style=\"font-style: italic\">34</span>, 3, 45&ndash;67."
+                + "<span style=\"font-variant: small-caps\">Smith, B., Jones, B., and Williams, J.</span> 2016. Title of the test entry. <span style=\"font-style: italic\">BibTeX Journal</span> <span style=\"font-style: italic\">34</span>, 3, 45&ndash;67."
                 + "</div>\n"
                 + "";
 
@@ -42,7 +42,7 @@ class CitationStyleGeneratorTest {
     }
 
     @Test
-    void testAPACitation() {
+    void aPACitation() {
         BibDatabaseContext context = new BibDatabaseContext(new BibDatabase(List.of(TestEntry.getTestEntry())));
         context.setMode(BibDatabaseMode.BIBLATEX);
         List<CitationStyle> styleList = CitationStyle.discoverCitationStyles();
@@ -51,7 +51,7 @@ class CitationStyleGeneratorTest {
 
         // if the apa-7th-citation.csl citation style changes this has to be modified
         String expected = "  <div class=\"csl-entry\">"
-                + "Smith, B., Jones, B., &amp; Williams, J. (2016-07). Title of the test entry. <span style=\"font-style: italic\">BibTeX Journal</span>, <span style=\"font-style: italic\">34</span>(3), 45&ndash;67. https://doi.org/10.1001/bla.blubb"
+                + "Smith, B., Jones, B., &amp; Williams, J. (2016). Title of the test entry. <span style=\"font-style: italic\">BibTeX Journal</span>, <span style=\"font-style: italic\">34</span>(3), 45&ndash;67. https://doi.org/10.1001/bla.blubb"
                 + "</div>\n"
                 + "";
 
@@ -59,7 +59,7 @@ class CitationStyleGeneratorTest {
     }
 
     @Test
-    void testIgnoreNewLine() {
+    void ignoreNewLine() {
         BibEntry entry = new BibEntry();
         entry.setField(StandardField.AUTHOR, "Last, First and\nDoe, Jane");
 
@@ -72,7 +72,7 @@ class CitationStyleGeneratorTest {
     }
 
     @Test
-    void testIgnoreCarriageReturnNewLine() {
+    void ignoreCarriageReturnNewLine() {
         BibEntry entry = new BibEntry();
         entry.setField(StandardField.AUTHOR, "Last, First and\r\nDoe, Jane");
 
@@ -85,16 +85,16 @@ class CitationStyleGeneratorTest {
     }
 
     @Test
-    void testMissingCitationStyle() {
+    void missingCitationStyle() {
         String expected = Localization.lang("Cannot generate preview based on selected citation style.");
         String citation = CitationStyleGenerator.generateCitation(new BibEntry(), "faulty citation style", bibEntryTypesManager);
         assertEquals(expected, citation);
     }
 
     @Test
-    void testHtmlFormat() {
+    void htmlFormat() {
         String expectedCitation = "  <div class=\"csl-entry\">\n" +
-                "    <div class=\"csl-left-margin\">[1]</div><div class=\"csl-right-inline\">B. Smith, B. Jones, and J. Williams, &ldquo;Title of the test entry,&rdquo; <span style=\"font-style: italic\">BibTeX Journal</span>, vol. 34, no. 3, pp. 45&ndash;67, 2016-07, doi: 10.1001/bla.blubb.</div>\n" +
+                "    <div class=\"csl-left-margin\">[1]</div><div class=\"csl-right-inline\">B. Smith, B. Jones, and J. Williams, &ldquo;Title of the test entry,&rdquo; <span style=\"font-style: italic\">BibTeX Journal</span>, vol. 34, no. 3, pp. 45&ndash;67, Jul. 2016, doi: 10.1001/bla.blubb.</div>\n" +
                 "  </div>\n";
 
         BibEntry entry = TestEntry.getTestEntry();
@@ -106,8 +106,8 @@ class CitationStyleGeneratorTest {
     }
 
     @Test
-    void testTextFormat() {
-        String expectedCitation = "[1]B. Smith, B. Jones, and J. Williams, “Title of the test entry,” BibTeX Journal, vol. 34, no. 3, pp. 45–67, 2016-07, doi: 10.1001/bla.blubb.\n";
+    void textFormat() {
+        String expectedCitation = "[1]B. Smith, B. Jones, and J. Williams, “Title of the test entry,” BibTeX Journal, vol. 34, no. 3, pp. 45–67, Jul. 2016, doi: 10.1001/bla.blubb.\n";
 
         BibEntry entry = TestEntry.getTestEntry();
         String style = CitationStyle.getDefault().getSource();
@@ -118,7 +118,7 @@ class CitationStyleGeneratorTest {
     }
 
     @Test
-    void testHandleDiacritics() {
+    void handleDiacritics() {
         BibEntry entry = new BibEntry();
         // We need to escape the backslash as well, because the slash is part of the LaTeX expression
         entry.setField(StandardField.AUTHOR, "L{\\\"a}st, First and Doe, Jane");
@@ -132,8 +132,8 @@ class CitationStyleGeneratorTest {
     }
 
     @Test
-    void testHandleAmpersand() {
-        String expectedCitation = "[1]B. Smith, B. Jones, and J. Williams, “Famous quote: “&TitleTest&” - that is it,” BibTeX Journal, vol. 34, no. 3, pp. 45–67, 2016-07, doi: 10.1001/bla.blubb.\n";
+    void handleAmpersand() {
+        String expectedCitation = "[1]B. Smith, B. Jones, and J. Williams, “Famous quote: “&TitleTest&” - that is it,” BibTeX Journal, vol. 34, no. 3, pp. 45–67, Jul. 2016, doi: 10.1001/bla.blubb.\n";
         BibEntry entry = TestEntry.getTestEntry();
         entry.setField(StandardField.TITLE, "Famous quote: “&TitleTest&” - that is it");
         String style = CitationStyle.getDefault().getSource();
@@ -144,7 +144,7 @@ class CitationStyleGeneratorTest {
     }
 
     @Test
-    void testHandleCrossRefFields() {
+    void handleCrossRefFields() {
         BibEntry firstEntry = new BibEntry(StandardEntryType.InCollection)
                 .withCitationKey("smit2021")
                 .withField(StandardField.AUTHOR, "Smith, Bob")
@@ -160,7 +160,7 @@ class CitationStyleGeneratorTest {
                 .withField(StandardField.YEAR, "2021")
                 .withField(StandardField.ADDRESS, "Somewhere");
 
-        String expectedCitation = "[1]B. Smith, “An article,” J. Jones, Ed. Somewhere: Great Publisher, 2021, pp. 1–10.\n";
+        String expectedCitation = "[1]B. Smith, “An article,” J. Jones, Ed., Somewhere: Great Publisher, 2021, pp. 1–10.\n";
         BibDatabaseContext bibDatabaseContext = new BibDatabaseContext(new BibDatabase(List.of(firstEntry, secondEntry)));
         String style = CitationStyle.getDefault().getSource();
 
@@ -168,7 +168,7 @@ class CitationStyleGeneratorTest {
         assertEquals(expectedCitation, actualCitation);
     }
 
-    static Stream<Arguments> testCslMapping() {
+    static Stream<Arguments> cslMapping() {
         // if the default citation style changes this has to be modified
         return Stream.of(
                 Arguments.of(
@@ -574,7 +574,7 @@ class CitationStyleGeneratorTest {
 
     @ParameterizedTest
     @MethodSource
-    void testCslMapping(String expected, BibDatabaseMode mode, BibEntry entry, String cslFileName) throws Exception {
+    void cslMapping(String expected, BibDatabaseMode mode, BibEntry entry, String cslFileName) throws Exception {
         BibDatabaseContext bibDatabaseContext = new BibDatabaseContext(new BibDatabase(List.of(entry)));
         bibDatabaseContext.setMode(mode);
 

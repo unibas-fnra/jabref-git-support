@@ -6,12 +6,17 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.jabref.model.entry.Author;
 import org.jabref.model.entry.AuthorList;
+import org.jabref.model.strings.StringUtil;
+
+import org.jspecify.annotations.NonNull;
 
 public class AuthorListParser {
 
@@ -31,6 +36,9 @@ public class AuthorListParser {
     // Constant HashSet containing names of TeX special characters
     private static final Set<String> TEX_NAMES = Set.of(
             "aa", "ae", "l", "o", "oe", "i", "AA", "AE", "L", "O", "OE", "j");
+
+    private static final Pattern STARTS_WITH_CAPITAL_LETTER_DOT = Pattern.compile("^[A-Z]\\. ");
+
     /**
      * the raw bibtex author/editor field
      */
@@ -60,7 +68,7 @@ public class AuthorListParser {
     /**
      * Builds a new array of strings with stringbuilder. Regarding to the name affixes.
      *
-     * @return New string with correct seperation
+     * @return New string with correct separation
      */
     private static StringBuilder buildWithAffix(Collection<Integer> indexArray, List<String> nameList) {
         StringBuilder stringBuilder = new StringBuilder();
@@ -93,8 +101,20 @@ public class AuthorListParser {
      * @param listOfNames the String containing the person names to be parsed
      * @return a parsed list of persons
      */
-    public AuthorList parse(String listOfNames) {
-        Objects.requireNonNull(listOfNames);
+    public AuthorList parse(@NonNull String listOfNames) {
+        // Handling of "and others"
+        // Remove it from the list; it will be added at the very end of this method as special Author.OTHERS
+        listOfNames = listOfNames.trim();
+        final String andOthersSuffix = " and others";
+        final boolean andOthersPresent;
+        if (StringUtil.endsWithIgnoreCase(listOfNames, andOthersSuffix)) {
+            andOthersPresent = true;
+            listOfNames = StringUtil.removeStringAtTheEnd(listOfNames, " and others");
+        } else {
+            andOthersPresent = false;
+        }
+
+        listOfNames = checkNamesCommaSeparated(listOfNames);
 
         // Handle case names in order lastname, firstname and separated by ","
         // E.g., Ali Babar, M., Dingsøyr, T., Lago, P., van der Vliet, H.
@@ -116,7 +136,7 @@ public class AuthorListParser {
             // Usually the getAsLastFirstNamesWithAnd method would separate them if pre- and lastname are separated with "and"
             // If not, we check if spaces separate pre- and lastname
             if (spaceInAllParts) {
-                listOfNames = listOfNames.replaceAll(",", " and");
+                listOfNames = listOfNames.replace(",", " and");
             } else {
                 // Looking for name affixes to avoid
                 // arrayNameList needs to reduce by the count off avoiding terms
@@ -150,7 +170,35 @@ public class AuthorListParser {
         while (tokenStart < original.length()) {
             getAuthor().ifPresent(authors::add);
         }
+
+        if (andOthersPresent) {
+            authors.add(Author.OTHERS);
+        }
+
         return AuthorList.of(authors);
+    }
+
+    /**
+     * Handle cases names in order Firstname Lastname, separated by <code>","</code> and a final <code>", and "</code>
+     * E.g, <code>"I. Podadera, J. M. Carmona, A. Ibarra, and J. Molla"</code>
+     *
+     * @return the original or patched version of listOfNames
+     */
+    private static String checkNamesCommaSeparated(String listOfNames) {
+        int commandAndPos = listOfNames.lastIndexOf(", and ");
+        if (commandAndPos >= 0) {
+            String lastContainedName = listOfNames.substring(commandAndPos + ", and ".length());
+            Matcher matcher = STARTS_WITH_CAPITAL_LETTER_DOT.matcher(lastContainedName);
+            if (matcher.find()) {
+                String namesBeforeAndString = listOfNames.substring(0, commandAndPos);
+                String[] namesBeforeAnd = namesBeforeAndString.split(", ");
+                if (Arrays.stream(namesBeforeAnd).allMatch(name -> STARTS_WITH_CAPITAL_LETTER_DOT.matcher(name).find())) {
+                    // Format found
+                    listOfNames = Arrays.stream(namesBeforeAnd).collect(Collectors.joining(" and ", "", " and " + lastContainedName));
+                }
+            }
+        }
+        return listOfNames;
     }
 
     /**
@@ -159,7 +207,7 @@ public class AuthorListParser {
      * @return Preformatted author name; <CODE>Optional.empty()</CODE> if author name is empty.
      */
     private Optional<Author> getAuthor() {
-        List<Object> tokens = new ArrayList<>(); // initialization
+        List<Object> tokens = new ArrayList<>();
         int vonStart = -1;
         int lastStart = -1;
         int commaFirst = -1;
@@ -219,10 +267,10 @@ public class AuthorListParser {
             }
         }
 
-        // Second step: split name into parts (here: calculate indices
-        // of parts in 'tokens' Vector)
+        // Second step: split name into parts (here: calculate indices of parts in 'tokens' Vector)
         if (tokens.isEmpty()) {
-            return Optional.empty(); // no author information
+            // no author information
+            return Optional.empty();
         }
 
         // the following negatives indicate absence of the corresponding part
@@ -316,9 +364,11 @@ public class AuthorListParser {
         String lastPart = lastPartStart < 0 ? null : concatTokens(tokens, lastPartStart, lastPartEnd, OFFSET_TOKEN, false);
         String jrPart = jrPartStart < 0 ? null : concatTokens(tokens, jrPartStart, jrPartEnd, OFFSET_TOKEN, false);
 
-        if ((firstPart != null) && (lastPart != null) && lastPart.equals(lastPart.toUpperCase(Locale.ROOT)) && (lastPart.length() < 5)
+        if ((commaFirst < 0) && (firstPart != null) && (lastPart != null) && lastPart.equals(lastPart.toUpperCase(Locale.ROOT)) && (lastPart.length() < 5)
                 && (Character.UnicodeScript.of(lastPart.charAt(0)) != Character.UnicodeScript.HAN)) {
-            // The last part is a small string in complete upper case, so interpret it as initial of the first name
+            // In case there is NO comma (e.g., Obama B) AND
+            // the last part is a small string in complete upper case,
+            // we interpret it as initial of the first name
             // This is the case for example in "Smith SH" which we think of as lastname=Smith and firstname=SH
             // The length < 5 constraint should allow for "Smith S.H." as input
             return Optional.of(new Author(lastPart, lastPart, vonPart, firstPart, jrPart));

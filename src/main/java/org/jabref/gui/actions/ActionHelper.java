@@ -13,11 +13,11 @@ import javafx.scene.control.TabPane;
 
 import org.jabref.gui.StateManager;
 import org.jabref.logic.shared.DatabaseLocation;
+import org.jabref.logic.util.io.FileUtil;
 import org.jabref.model.database.BibDatabaseContext;
 import org.jabref.model.entry.BibEntry;
 import org.jabref.model.entry.LinkedFile;
 import org.jabref.model.entry.field.Field;
-import org.jabref.model.util.FileHelper;
 import org.jabref.preferences.PreferencesService;
 
 import com.tobiasdiez.easybind.EasyBind;
@@ -32,6 +32,10 @@ public class ActionHelper {
     public static BooleanExpression needsSharedDatabase(StateManager stateManager) {
         EasyBinding<Boolean> binding = EasyBind.map(stateManager.activeDatabaseProperty(), context -> context.filter(c -> c.getLocation() == DatabaseLocation.SHARED).isPresent());
         return BooleanExpression.booleanExpression(binding);
+    }
+
+    public static BooleanExpression needsMultipleDatabases(TabPane tabbedPane) {
+        return Bindings.size(tabbedPane.getTabs()).greaterThan(1);
     }
 
     public static BooleanExpression needsStudyDatabase(StateManager stateManager) {
@@ -67,14 +71,14 @@ public class ActionHelper {
         Binding<Boolean> fileIsPresent = EasyBind.valueAt(selectedEntries, 0).mapOpt(entry -> {
             List<LinkedFile> files = entry.getFiles();
 
-            if ((entry.getFiles().size() > 0) && stateManager.getActiveDatabase().isPresent()) {
-                if (files.get(0).isOnlineLink()) {
+            if ((!entry.getFiles().isEmpty()) && stateManager.getActiveDatabase().isPresent()) {
+                if (files.getFirst().isOnlineLink()) {
                     return true;
                 }
 
-                Optional<Path> filename = FileHelper.find(
+                Optional<Path> filename = FileUtil.find(
                         stateManager.getActiveDatabase().get(),
-                        files.get(0).getLink(),
+                        files.getFirst().getLink(),
                         preferencesService.getFilePreferences());
                 return filename.isPresent();
             } else {
@@ -96,9 +100,5 @@ public class ActionHelper {
     public static BooleanExpression hasLinkedFileForSelectedEntries(StateManager stateManager) {
         return BooleanExpression.booleanExpression(EasyBind.reduce(stateManager.getSelectedEntries(),
                 entries -> entries.anyMatch(entry -> !entry.getFiles().isEmpty())));
-    }
-
-    public static BooleanExpression isOpenMultiDatabase(TabPane tabbedPane) {
-        return Bindings.size(tabbedPane.getTabs()).greaterThan(1);
     }
 }

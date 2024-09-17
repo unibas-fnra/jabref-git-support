@@ -1,11 +1,16 @@
 package org.jabref.gui.exporter;
 
-import org.jabref.gui.Globals;
-import org.jabref.gui.JabRefFrame;
+import java.util.function.Supplier;
+
+import org.jabref.gui.DialogService;
+import org.jabref.gui.LibraryTab;
 import org.jabref.gui.StateManager;
 import org.jabref.gui.actions.ActionHelper;
 import org.jabref.gui.actions.SimpleCommand;
+import org.jabref.model.entry.BibEntryTypesManager;
 import org.jabref.preferences.PreferencesService;
+
+import com.airhacks.afterburner.injection.Injector;
 
 /**
  * This class is just a simple wrapper for the soon to be refactored SaveDatabaseAction.
@@ -15,12 +20,19 @@ public class SaveAction extends SimpleCommand {
     public enum SaveMethod { SAVE, SAVE_AS, SAVE_SELECTED }
 
     private final SaveMethod saveMethod;
-    private final JabRefFrame frame;
+    private final Supplier<LibraryTab> tabSupplier;
+
+    private final DialogService dialogService;
     private final PreferencesService preferencesService;
 
-    public SaveAction(SaveMethod saveMethod, JabRefFrame frame, PreferencesService preferencesService, StateManager stateManager) {
+    public SaveAction(SaveMethod saveMethod,
+                      Supplier<LibraryTab> tabSupplier,
+                      DialogService dialogService,
+                      PreferencesService preferencesService,
+                      StateManager stateManager) {
         this.saveMethod = saveMethod;
-        this.frame = frame;
+        this.tabSupplier = tabSupplier;
+        this.dialogService = dialogService;
         this.preferencesService = preferencesService;
 
         if (saveMethod == SaveMethod.SAVE_SELECTED) {
@@ -33,9 +45,10 @@ public class SaveAction extends SimpleCommand {
     @Override
     public void execute() {
         SaveDatabaseAction saveDatabaseAction = new SaveDatabaseAction(
-                frame.getCurrentLibraryTab(),
+                tabSupplier.get(),
+                dialogService,
                 preferencesService,
-                Globals.entryTypesManager);
+                Injector.instantiateModelOrService(BibEntryTypesManager.class));
 
         switch (saveMethod) {
             case SAVE -> saveDatabaseAction.save();

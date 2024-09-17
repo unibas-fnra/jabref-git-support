@@ -11,9 +11,8 @@ import org.jabref.logic.importer.IdBasedParserFetcher;
 import org.jabref.logic.importer.ImportFormatPreferences;
 import org.jabref.logic.importer.Parser;
 import org.jabref.logic.importer.fileformat.BibtexParser;
-import org.jabref.model.util.DummyFileUpdateMonitor;
 
-import org.apache.http.client.utils.URIBuilder;
+import org.apache.hc.core5.net.URIBuilder;
 
 /*
  * http://www.diva-portal.org/smash/aboutdiva.jsf?dswid=-3222
@@ -49,7 +48,7 @@ public class DiVA implements IdBasedParserFetcher {
 
     @Override
     public Parser getParser() {
-        return new BibtexParser(importFormatPreferences, new DummyFileUpdateMonitor());
+        return new BibtexParser(importFormatPreferences);
     }
 
     public boolean isValidId(String identifier) {

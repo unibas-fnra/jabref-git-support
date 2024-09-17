@@ -10,7 +10,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.jabref.logic.citationkeypattern.GlobalCitationKeyPattern;
+import org.jabref.logic.bibtex.FieldPreferences;
+import org.jabref.logic.citationkeypattern.GlobalCitationKeyPatterns;
 import org.jabref.logic.exporter.BibDatabaseWriter;
 import org.jabref.logic.exporter.MetaDataSerializer;
 import org.jabref.logic.importer.ParseException;
@@ -52,15 +53,18 @@ public class DBMSSynchronizer implements DatabaseSynchronizer {
     private final EventBus eventBus;
     private Connection currentConnection;
     private final Character keywordSeparator;
-    private final GlobalCitationKeyPattern globalCiteKeyPattern;
+    private final GlobalCitationKeyPatterns globalCiteKeyPattern;
+    private final FieldPreferences fieldPreferences;
     private final FileUpdateMonitor fileMonitor;
     private Optional<BibEntry> lastEntryChanged;
 
     public DBMSSynchronizer(BibDatabaseContext bibDatabaseContext, Character keywordSeparator,
-                            GlobalCitationKeyPattern globalCiteKeyPattern, FileUpdateMonitor fileMonitor) {
+                            FieldPreferences fieldPreferences,
+                            GlobalCitationKeyPatterns globalCiteKeyPattern, FileUpdateMonitor fileMonitor) {
         this.bibDatabaseContext = Objects.requireNonNull(bibDatabaseContext);
         this.bibDatabase = bibDatabaseContext.getDatabase();
         this.metaData = bibDatabaseContext.getMetaData();
+        this.fieldPreferences = fieldPreferences;
         this.fileMonitor = fileMonitor;
         this.eventBus = new EventBus();
         this.keywordSeparator = keywordSeparator;
@@ -70,8 +74,6 @@ public class DBMSSynchronizer implements DatabaseSynchronizer {
 
     /**
      * Listening method. Inserts a new {@link BibEntry} into shared database.
-     *
-     * @param event {@link EntriesAddedEvent} object
      */
     @Subscribe
     public void listen(EntriesAddedEvent event) {
@@ -89,8 +91,6 @@ public class DBMSSynchronizer implements DatabaseSynchronizer {
 
     /**
      * Listening method. Updates an existing shared {@link BibEntry}.
-     *
-     * @param event {@link FieldChangedEvent} object
      */
     @Subscribe
     public void listen(FieldChangedEvent event) {
@@ -110,10 +110,7 @@ public class DBMSSynchronizer implements DatabaseSynchronizer {
 
     /**
      * Listening method. Deletes the given list of {@link BibEntry} from shared database.
-     *
-     * @param event {@link EntriesRemovedEvent} object
      */
-
     @Subscribe
     public void listen(EntriesRemovedEvent event) {
         // While synchronizing the local database (see synchronizeLocalDatabase() below), some EntriesEvents may be posted.
@@ -128,8 +125,6 @@ public class DBMSSynchronizer implements DatabaseSynchronizer {
 
     /**
      * Listening method. Synchronizes the shared {@link MetaData} and applies them locally.
-     *
-     * @param event
      */
     @Subscribe
     public void listen(MetaDataChangedEvent event) {
@@ -252,7 +247,7 @@ public class DBMSSynchronizer implements DatabaseSynchronizer {
             return;
         }
         try {
-            BibDatabaseWriter.applySaveActions(bibEntry, metaData); // perform possibly existing save actions
+            BibDatabaseWriter.applySaveActions(bibEntry, metaData, fieldPreferences); // perform possibly existing save actions
             dbmsProcessor.updateEntry(bibEntry);
         } catch (OfflineLockException exception) {
             eventBus.post(new UpdateRefusedEvent(bibDatabaseContext, exception.getLocalBibEntry(), exception.getSharedBibEntry()));
@@ -282,7 +277,7 @@ public class DBMSSynchronizer implements DatabaseSynchronizer {
     /**
      * Synchronizes all shared meta data.
      */
-    private void synchronizeSharedMetaData(MetaData data, GlobalCitationKeyPattern globalCiteKeyPattern) {
+    private void synchronizeSharedMetaData(MetaData data, GlobalCitationKeyPatterns globalCiteKeyPattern) {
         if (!checkCurrentConnection()) {
             return;
         }
@@ -303,7 +298,7 @@ public class DBMSSynchronizer implements DatabaseSynchronizer {
         for (BibEntry bibEntry : bibDatabase.getEntries()) {
             try {
                 // synchronize only if changes were present
-                if (!BibDatabaseWriter.applySaveActions(bibEntry, metaData).isEmpty()) {
+                if (!BibDatabaseWriter.applySaveActions(bibEntry, metaData, fieldPreferences).isEmpty()) {
                     dbmsProcessor.updateEntry(bibEntry);
                 }
             } catch (OfflineLockException exception) {
@@ -328,7 +323,9 @@ public class DBMSSynchronizer implements DatabaseSynchronizer {
         synchronizeLocalMetaData();
     }
 
-    // Synchronizes local BibEntries only if last entry changes still remain
+    /**
+     * Synchronizes local BibEntries only if last entry changes still remain
+     */
     public void pullLastEntryChanges() {
         if (!lastEntryChanged.isEmpty()) {
             if (!checkCurrentConnection()) {
@@ -336,11 +333,14 @@ public class DBMSSynchronizer implements DatabaseSynchronizer {
             }
             synchronizeLocalMetaData();
             pullWithLastEntry();
-            synchronizeLocalDatabase(); // Pull changes for the case that there were some
+            // Pull changes for the case that there were some
+            synchronizeLocalDatabase();
         }
     }
 
-    // Synchronizes local BibEntries and pulls remaining last entry changes
+    /**
+     * Synchronizes local BibEntries and pulls remaining last entry changes
+     */
     private void pullWithLastEntry() {
         if (!lastEntryChanged.isEmpty() && isPresentLocalBibEntry(lastEntryChanged.get())) {
             synchronizeSharedEntry(lastEntryChanged.get());
@@ -363,7 +363,7 @@ public class DBMSSynchronizer implements DatabaseSynchronizer {
             }
             return isValid;
         } catch (SQLException e) {
-            LOGGER.error("SQL Error:", e);
+            LOGGER.error("SQL Error during connection check", e);
             return false;
         }
     }
@@ -377,7 +377,7 @@ public class DBMSSynchronizer implements DatabaseSynchronizer {
      */
     public boolean isEventSourceAccepted(EntriesEvent event) {
         EntriesEventSource eventSource = event.getEntriesEventSource();
-        return ((eventSource == EntriesEventSource.LOCAL) || (eventSource == EntriesEventSource.UNDO));
+        return (eventSource == EntriesEventSource.LOCAL) || (eventSource == EntriesEventSource.UNDO);
     }
 
     @Override

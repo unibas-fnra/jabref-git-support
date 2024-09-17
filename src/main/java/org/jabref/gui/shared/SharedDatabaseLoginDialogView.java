@@ -1,5 +1,7 @@
 package org.jabref.gui.shared;
 
+import javax.swing.undo.UndoManager;
+
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -10,13 +12,18 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
 
+import org.jabref.gui.ClipBoardManager;
 import org.jabref.gui.DialogService;
-import org.jabref.gui.JabRefFrame;
+import org.jabref.gui.LibraryTabContainer;
+import org.jabref.gui.StateManager;
 import org.jabref.gui.util.BaseDialog;
 import org.jabref.gui.util.ControlHelper;
 import org.jabref.gui.util.IconValidationDecorator;
+import org.jabref.gui.util.TaskExecutor;
 import org.jabref.logic.l10n.Localization;
 import org.jabref.logic.shared.DBMSType;
+import org.jabref.model.entry.BibEntryTypesManager;
+import org.jabref.model.util.FileUpdateMonitor;
 import org.jabref.preferences.PreferencesService;
 
 import com.airhacks.afterburner.views.ViewLoader;
@@ -25,9 +32,6 @@ import de.saxsys.mvvmfx.utils.validation.visualization.ControlsFxVisualizer;
 import jakarta.inject.Inject;
 
 public class SharedDatabaseLoginDialogView extends BaseDialog<Void> {
-
-    private final JabRefFrame frame;
-
     @FXML private ComboBox<DBMSType> databaseType;
     @FXML private TextField host;
     @FXML private TextField database;
@@ -44,15 +48,24 @@ public class SharedDatabaseLoginDialogView extends BaseDialog<Void> {
     @FXML private PasswordField passwordKeystore;
     @FXML private Button browseKeystore;
     @FXML private TextField serverTimezone;
+    @FXML private TextField jdbcUrl;
+    @FXML private CheckBox expertMode;
 
     @Inject private DialogService dialogService;
     @Inject private PreferencesService preferencesService;
+    @Inject private StateManager stateManager;
+    @Inject private BibEntryTypesManager entryTypesManager;
+    @Inject private FileUpdateMonitor fileUpdateMonitor;
+    @Inject private UndoManager undoManager;
+    @Inject private ClipBoardManager clipBoardManager;
+    @Inject private TaskExecutor taskExecutor;
 
+    private final LibraryTabContainer tabContainer;
     private SharedDatabaseLoginDialogViewModel viewModel;
     private final ControlsFxVisualizer visualizer = new ControlsFxVisualizer();
 
-    public SharedDatabaseLoginDialogView(JabRefFrame frame) {
-        this.frame = frame;
+    public SharedDatabaseLoginDialogView(LibraryTabContainer tabContainer) {
+        this.tabContainer = tabContainer;
         this.setTitle(Localization.lang("Connect to shared database"));
 
         ViewLoader.view(this)
@@ -63,7 +76,7 @@ public class SharedDatabaseLoginDialogView extends BaseDialog<Void> {
         Button btnConnect = (Button) this.getDialogPane().lookupButton(connectButton);
         // must be set here, because in initialize the button is still null
         btnConnect.disableProperty().bind(viewModel.formValidation().validProperty().not());
-        btnConnect.textProperty().bind(EasyBind.map(viewModel.loadingProperty(), loading -> (loading) ? Localization.lang("Connecting...") : Localization.lang("Connect")));
+        btnConnect.textProperty().bind(EasyBind.map(viewModel.loadingProperty(), loading -> loading ? Localization.lang("Connecting...") : Localization.lang("Connect")));
     }
 
     @FXML
@@ -79,7 +92,16 @@ public class SharedDatabaseLoginDialogView extends BaseDialog<Void> {
     private void initialize() {
         visualizer.setDecoration(new IconValidationDecorator());
 
-        viewModel = new SharedDatabaseLoginDialogViewModel(frame, dialogService, preferencesService);
+        viewModel = new SharedDatabaseLoginDialogViewModel(
+                tabContainer,
+                dialogService,
+                preferencesService,
+                stateManager,
+                entryTypesManager,
+                fileUpdateMonitor,
+                undoManager,
+                clipBoardManager,
+                taskExecutor);
         databaseType.getItems().addAll(DBMSType.values());
         databaseType.getSelectionModel().select(0);
 
@@ -99,6 +121,10 @@ public class SharedDatabaseLoginDialogView extends BaseDialog<Void> {
         useSSL.selectedProperty().bindBidirectional(viewModel.useSSLProperty());
 
         fileKeystore.textProperty().bindBidirectional(viewModel.keyStoreProperty());
+
+        expertMode.selectedProperty().bindBidirectional(viewModel.expertModeProperty());
+        jdbcUrl.textProperty().bindBidirectional(viewModel.jdbcUrlProperty());
+        jdbcUrl.disableProperty().bind(viewModel.expertModeProperty().not());
 
         browseKeystore.disableProperty().bind(viewModel.useSSLProperty().not());
         passwordKeystore.disableProperty().bind(viewModel.useSSLProperty().not());

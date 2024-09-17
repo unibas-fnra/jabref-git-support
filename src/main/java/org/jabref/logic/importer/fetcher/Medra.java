@@ -22,9 +22,9 @@ import org.jabref.model.entry.field.StandardField;
 import org.jabref.model.entry.types.EntryType;
 import org.jabref.model.entry.types.StandardEntryType;
 
-import kong.unirest.json.JSONArray;
-import kong.unirest.json.JSONException;
-import kong.unirest.json.JSONObject;
+import kong.unirest.core.json.JSONArray;
+import kong.unirest.core.json.JSONException;
+import kong.unirest.core.json.JSONObject;
 
 /**
  * A class for fetching DOIs from Medra
@@ -78,7 +78,7 @@ public class Medra implements IdBasedParserFetcher {
     }
 
     private EntryType convertType(String type) {
-        return type.equals("article-journal") ? StandardEntryType.Article : StandardEntryType.Misc;
+        return "article-journal".equals(type) ? StandardEntryType.Article : StandardEntryType.Misc;
     }
 
     private String toAuthors(JSONArray authors) {
@@ -88,7 +88,7 @@ public class Medra implements IdBasedParserFetcher {
         // input: list of {"literal":"A."}
         return IntStream.range(0, authors.length())
                         .mapToObj(authors::getJSONObject)
-                        .map((author) -> author.has("literal") ? // quickly route through the literal string
+                        .map(author -> author.has("literal") ? // quickly route through the literal string
                                 new Author(author.getString("literal"), "", "", "", "") :
                                 new Author(author.optString("given", ""), "", "", author.optString("family", ""), ""))
                         .collect(AuthorList.collect())

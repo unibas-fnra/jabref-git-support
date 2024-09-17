@@ -2,30 +2,39 @@ package org.jabref.logic.importer;
 
 import java.util.Collection;
 
-import org.jabref.logic.cleanup.ConvertToBiblatexCleanup;
-import org.jabref.logic.cleanup.ConvertToBibtexCleanup;
+import org.jabref.logic.bibtex.FieldPreferences;
+import org.jabref.logic.cleanup.NormalizeWhitespacesCleanup;
 import org.jabref.model.database.BibDatabaseMode;
 import org.jabref.model.entry.BibEntry;
 
-public class ImportCleanup {
+import org.jspecify.annotations.NonNull;
 
-    private final BibDatabaseMode targetBibEntryFormat;
+/**
+ * Cleanup of imported entries to be processable by JabRef
+ */
+public abstract class ImportCleanup {
 
-    public ImportCleanup(BibDatabaseMode targetBibEntryFormat) {
-        this.targetBibEntryFormat = targetBibEntryFormat;
+    private final NormalizeWhitespacesCleanup normalizeWhitespacesCleanup;
+
+    protected ImportCleanup(FieldPreferences fieldPreferences) {
+        this.normalizeWhitespacesCleanup = new NormalizeWhitespacesCleanup(fieldPreferences);
     }
 
     /**
-     * Performs a format conversion of the given entry into the targeted format.
-     *
-     * @return Returns the cleaned up bibentry to enable usage of doPostCleanup in streams.
+     * Kind of builder for a cleanup
+     */
+    public static ImportCleanup targeting(BibDatabaseMode mode, @NonNull FieldPreferences fieldPreferences) {
+        return switch (mode) {
+            case BIBTEX -> new ImportCleanupBibtex(fieldPreferences);
+            case BIBLATEX -> new ImportCleanupBiblatex(fieldPreferences);
+        };
+    }
+
+    /**
+     * @implNote Related method: {@link ParserFetcher#doPostCleanup(BibEntry)}
      */
     public BibEntry doPostCleanup(BibEntry entry) {
-        if (targetBibEntryFormat == BibDatabaseMode.BIBTEX) {
-            new ConvertToBibtexCleanup().cleanup(entry);
-        } else if (targetBibEntryFormat == BibDatabaseMode.BIBLATEX) {
-            new ConvertToBiblatexCleanup().cleanup(entry);
-        }
+        normalizeWhitespacesCleanup.cleanup(entry);
         return entry;
     }
 

@@ -1,7 +1,10 @@
 package org.jabref.gui.maintable;
 
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Objects;
+
+import javax.swing.undo.UndoManager;
 
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
@@ -15,7 +18,10 @@ import javafx.scene.control.TableColumn;
 import org.jabref.gui.util.FieldsUtil;
 import org.jabref.logic.l10n.Localization;
 import org.jabref.model.entry.field.FieldFactory;
+import org.jabref.model.metadata.SaveOrder;
+import org.jabref.preferences.PreferencesService;
 
+import com.airhacks.afterburner.injection.Injector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,22 +34,23 @@ public class MainTableColumnModel {
     public static final Character COLUMNS_QUALIFIER_DELIMITER = ':';
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MainTableColumnModel.class);
-
     public enum Type {
         INDEX("index", Localization.lang("Index")),
         EXTRAFILE("extrafile", Localization.lang("File type")),
         FILES("files", Localization.lang("Linked files")),
+
         GROUPS("groups", Localization.lang("Groups")),
+        GROUP_ICONS("group_icons", Localization.lang("Group icons")),
         LINKED_IDENTIFIER("linked_id", Localization.lang("Linked identifiers")),
         NORMALFIELD("field"),
         SPECIALFIELD("special", Localization.lang("Special")),
         LIBRARY_NAME("library", Localization.lang("Library"));
 
-        public static final EnumSet<Type> ICON_COLUMNS = EnumSet.of(EXTRAFILE, FILES, GROUPS, LINKED_IDENTIFIER);
+
+        public static final EnumSet<Type> ICON_COLUMNS = EnumSet.of(EXTRAFILE, FILES, GROUPS, GROUP_ICONS, LINKED_IDENTIFIER);
 
         private final String name;
         private final String displayName;
-
         Type(String name) {
             this.name = name;
             this.displayName = name;
@@ -78,6 +85,9 @@ public class MainTableColumnModel {
     private final DoubleProperty widthProperty = new SimpleDoubleProperty();
     private final ObjectProperty<TableColumn.SortType> sortTypeProperty = new SimpleObjectProperty<>();
 
+    private final PreferencesService preferencesService;
+    private final UndoManager undoManager;
+
     /**
      * This is used by the preferences dialog, to initialize available columns the user can add to the table.
      *
@@ -91,6 +101,8 @@ public class MainTableColumnModel {
         this.typeProperty.setValue(type);
         this.qualifierProperty.setValue(qualifier);
         this.sortTypeProperty.setValue(TableColumn.SortType.ASCENDING);
+        this.preferencesService = Injector.instantiateModelOrService(PreferencesService.class);
+        this.undoManager = Injector.instantiateModelOrService(UndoManager.class);
 
         if (Type.ICON_COLUMNS.contains(type)) {
             this.widthProperty.setValue(ColumnPreferences.ICON_COLUMN_WIDTH);
@@ -142,7 +154,10 @@ public class MainTableColumnModel {
                 || (typeProperty.getValue() == Type.INDEX)) {
             return typeProperty.getValue().getDisplayName();
         } else {
-            return FieldsUtil.getNameWithType(FieldFactory.parseField(qualifierProperty.getValue()));
+            // In case an OrField is used, `FieldFactory.parseField` returns UnknownField, which leads to
+            // "author/editor(Custom)" instead of "author/editor" in the output
+
+            return FieldsUtil.getNameWithType(FieldFactory.parseField(qualifierProperty.getValue()), preferencesService, undoManager);
         }
     }
 
@@ -164,6 +179,21 @@ public class MainTableColumnModel {
 
     public ObjectProperty<TableColumn.SortType> sortTypeProperty() {
         return sortTypeProperty;
+    }
+
+    /**
+     * Returns a list of sort cirteria based on the fields the current column displays.
+     * In case it is single field, a single SortCriterion is returned.
+     * In case of multiple fields, for each field, there is a SortCriterion contained in the list.
+     *
+     * Implementation reason: We want to have SortCriterion handle a single field, because the UI allows for handling
+     * "plain" fields only.
+     */
+    public List<SaveOrder.SortCriterion> getSortCriteria() {
+        boolean descending = getSortType() == TableColumn.SortType.DESCENDING;
+        return FieldFactory.parseOrFields(getQualifier()).getFields().stream()
+                .map(field -> new SaveOrder.SortCriterion(field, descending))
+                .toList();
     }
 
     @Override

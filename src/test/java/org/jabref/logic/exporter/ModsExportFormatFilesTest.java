@@ -42,7 +42,7 @@ public class ModsExportFormatFilesTest {
     private Path importFile;
 
     public static Stream<String> fileNames() throws Exception {
-        resourceDir = Path.of(MSBibExportFormatTestFiles.class.getResource("ModsExportFormatTestAllFields.bib").toURI()).getParent();
+        resourceDir = Path.of(MSBibExportFormatFilesTest.class.getResource("ModsExportFormatTestAllFields.bib").toURI()).getParent();
         LOGGER.debug("Mods export resouce dir {}", resourceDir);
 
         try (Stream<Path> stream = Files.list(resourceDir)) {
@@ -70,7 +70,7 @@ public class ModsExportFormatFilesTest {
 
     @ParameterizedTest
     @MethodSource("fileNames")
-    public final void testPerformExport(String filename) throws Exception {
+    public final void performExport(String filename) throws Exception {
         importFile = Path.of(ModsExportFormatFilesTest.class.getResource(filename).toURI());
         String xmlFileName = filename.replace(".bib", ".xml");
         List<BibEntry> entries = bibtexImporter.importDatabase(importFile).getDatabase().getEntries();
@@ -85,7 +85,7 @@ public class ModsExportFormatFilesTest {
 
     @ParameterizedTest
     @MethodSource("fileNames")
-    public final void testExportAsModsAndThenImportAsMods(String filename) throws Exception {
+    public final void exportAsModsAndThenImportAsMods(String filename) throws Exception {
         importFile = Path.of(ModsExportFormatFilesTest.class.getResource(filename).toURI());
         List<BibEntry> entries = bibtexImporter.importDatabase(importFile).getDatabase().getEntries();
 
@@ -95,7 +95,7 @@ public class ModsExportFormatFilesTest {
 
     @ParameterizedTest
     @MethodSource("fileNames")
-    public final void testImportAsModsAndExportAsMods(String filename) throws Exception {
+    public final void importAsModsAndExportAsMods(String filename) throws Exception {
         importFile = Path.of(ModsExportFormatFilesTest.class.getResource(filename).toURI());
         String xmlFileName = filename.replace(".bib", ".xml");
         Path xmlFile = Path.of(ModsExportFormatFilesTest.class.getResource(xmlFileName).toURI());

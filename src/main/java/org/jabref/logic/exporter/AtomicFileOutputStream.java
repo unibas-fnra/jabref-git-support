@@ -49,7 +49,7 @@ public class AtomicFileOutputStream extends FilterOutputStream {
     private static final Logger LOGGER = LoggerFactory.getLogger(AtomicFileOutputStream.class);
 
     private static final String TEMPORARY_EXTENSION = ".tmp";
-    private static final String SAVE_EXTENSION = "." + BackupFileType.SAVE.getExtensions().get(0);
+    private static final String SAVE_EXTENSION = "." + BackupFileType.SAVE.getExtensions().getFirst();
 
     /**
      * The file we want to create/replace.
@@ -61,7 +61,8 @@ public class AtomicFileOutputStream extends FilterOutputStream {
      */
     private final Path temporaryFile;
 
-    private final FileLock temporaryFileLock;
+    private FileLock temporaryFileLock;
+
     /**
      * A backup of the target file (if it exists), created when the stream is closed
      */
@@ -75,7 +76,7 @@ public class AtomicFileOutputStream extends FilterOutputStream {
      * Creates a new output stream to write to or replace the file at the specified path.
      *
      * @param path       the path of the file to write to or replace
-     * @param keepBackup whether to keep the backup file after a successful write process
+     * @param keepBackup whether to keep the backup file (.sav) after a successful write process
      */
     public AtomicFileOutputStream(Path path, boolean keepBackup) throws IOException {
         // Files.newOutputStream(getPathOfTemporaryFile(path)) leads to a "sun.nio.ch.ChannelOutputStream", which does not offer "lock"
@@ -84,7 +85,7 @@ public class AtomicFileOutputStream extends FilterOutputStream {
 
     /**
      * Creates a new output stream to write to or replace the file at the specified path.
-     * The backup file is deleted when write was successful.
+     * The backup file (.sav) is deleted when write was successful.
      *
      * @param path the path of the file to write to or replace
      */
@@ -104,8 +105,14 @@ public class AtomicFileOutputStream extends FilterOutputStream {
 
         try {
             // Lock files (so that at least not another JabRef instance writes at the same time to the same tmp file)
-            if (out instanceof FileOutputStream) {
-                temporaryFileLock = ((FileOutputStream) out).getChannel().lock();
+            if (out instanceof FileOutputStream stream) {
+                try {
+                    temporaryFileLock = stream.getChannel().tryLock();
+                } catch (IOException ex) {
+                    // workaround for https://bugs.openjdk.org/browse/JDK-8167023
+                    LOGGER.warn("Could not acquire file lock. Maybe we are on a network drive?", ex);
+                    temporaryFileLock = null;
+                }
             } else {
                 temporaryFileLock = null;
             }
@@ -159,12 +166,11 @@ public class AtomicFileOutputStream extends FilterOutputStream {
 
     private void cleanup() {
         try {
-            if (temporaryFileLock != null) {
+            if (temporaryFileLock != null && temporaryFileLock.isValid()) {
                 temporaryFileLock.release();
             }
         } catch (IOException exception) {
-            // Currently, we always get the exception:
-            // Unable to release lock on file C:\Users\koppor\AppData\Local\Temp\junit11976839611279549873\error-during-save.txt.tmp: java.nio.channels.ClosedChannelException
+            // In case we still get an exception
             LOGGER.debug("Unable to release lock on file {}", temporaryFile, exception);
         }
         try {
@@ -183,8 +189,8 @@ public class AtomicFileOutputStream extends FilterOutputStream {
             try {
                 // Make sure we have written everything to the temporary file
                 flush();
-                if (out instanceof FileOutputStream) {
-                    ((FileOutputStream) out).getFD().sync();
+                if (out instanceof FileOutputStream stream) {
+                    stream.getFD().sync();
                 }
             } catch (IOException exception) {
                 // Try to close nonetheless
@@ -238,7 +244,7 @@ public class AtomicFileOutputStream extends FilterOutputStream {
             }
 
             if (!keepBackup) {
-                // Remove backup file
+                // Remove backup file for saving
                 Files.deleteIfExists(backupFile);
             }
         } finally {

@@ -9,6 +9,7 @@ import java.util.stream.Stream;
 
 import javafx.collections.FXCollections;
 
+import org.jabref.logic.bibtex.FieldPreferences;
 import org.jabref.logic.importer.FetcherException;
 import org.jabref.logic.importer.ImportCleanup;
 import org.jabref.logic.importer.ImportFormatPreferences;
@@ -32,50 +33,54 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @FetcherTest
-@DisabledOnCIServer("Produces to many requests on CI")
+@DisabledOnCIServer("Produces too many requests on CI")
 public class CompositeSearchBasedFetcherTest {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(CompositeSearchBasedFetcherTest.class);
 
+    private final ImporterPreferences importerPreferences = mock(ImporterPreferences.class, Answers.RETURNS_DEEP_STUBS);
+
     @Test
     public void createCompositeFetcherWithNullSet() {
         Assertions.assertThrows(IllegalArgumentException.class,
-                () -> new CompositeSearchBasedFetcher(null, 0));
+                () -> new CompositeSearchBasedFetcher(null, importerPreferences, 0));
     }
 
     @Test
     public void performSearchWithoutFetchers() throws Exception {
         Set<SearchBasedFetcher> empty = new HashSet<>();
-        CompositeSearchBasedFetcher fetcher = new CompositeSearchBasedFetcher(empty, Integer.MAX_VALUE);
+        CompositeSearchBasedFetcher fetcher = new CompositeSearchBasedFetcher(empty, importerPreferences, Integer.MAX_VALUE);
 
         List<BibEntry> result = fetcher.performSearch("quantum");
 
-        Assertions.assertEquals(result, Collections.EMPTY_LIST);
+        Assertions.assertEquals(result, Collections.emptyList());
     }
 
     @ParameterizedTest(name = "Perform Search on empty query.")
     @MethodSource("performSearchParameters")
     public void performSearchOnEmptyQuery(Set<SearchBasedFetcher> fetchers) throws Exception {
-        CompositeSearchBasedFetcher compositeFetcher = new CompositeSearchBasedFetcher(fetchers, Integer.MAX_VALUE);
+        CompositeSearchBasedFetcher compositeFetcher = new CompositeSearchBasedFetcher(fetchers, importerPreferences, Integer.MAX_VALUE);
 
         List<BibEntry> queryResult = compositeFetcher.performSearch("");
 
-        Assertions.assertEquals(queryResult, Collections.EMPTY_LIST);
+        Assertions.assertEquals(queryResult, Collections.emptyList());
     }
 
     @ParameterizedTest(name = "Perform search on query \"quantum\". Using the CompositeFetcher of the following " +
             "Fetchers: {arguments}")
     @MethodSource("performSearchParameters")
     public void performSearchOnNonEmptyQuery(Set<SearchBasedFetcher> fetchers) throws Exception {
-        CompositeSearchBasedFetcher compositeFetcher = new CompositeSearchBasedFetcher(fetchers, Integer.MAX_VALUE);
-        ImportCleanup cleanup = new ImportCleanup(BibDatabaseMode.BIBTEX);
+        CompositeSearchBasedFetcher compositeFetcher = new CompositeSearchBasedFetcher(fetchers, importerPreferences, Integer.MAX_VALUE);
+        FieldPreferences fieldPreferences = mock(FieldPreferences.class);
+        when(fieldPreferences.getNonWrappableFields()).thenReturn(FXCollections.observableArrayList());
+        ImportCleanup cleanup = ImportCleanup.targeting(BibDatabaseMode.BIBTEX, fieldPreferences);
 
         List<BibEntry> compositeResult = compositeFetcher.performSearch("quantum");
         for (SearchBasedFetcher fetcher : fetchers) {
             try {
                 List<BibEntry> fetcherResult = fetcher.performSearch("quantum");
                 fetcherResult.forEach(cleanup::doPostCleanup);
-                Assertions.assertTrue(compositeResult.containsAll(fetcherResult));
+                Assertions.assertTrue(compositeResult.containsAll(fetcherResult), "Did not contain " + fetcherResult);
             } catch (FetcherException e) {
                 /* We catch the Fetcher exception here, since the failing fetcher also fails in the CompositeFetcher
                  * and just leads to no additional results in the returned list. Therefore, the test should not fail
@@ -100,7 +105,7 @@ public class CompositeSearchBasedFetcherTest {
         List<SearchBasedFetcher> list = List.of(
                 new ArXivFetcher(importFormatPreferences),
                 new INSPIREFetcher(importFormatPreferences),
-                new GvkFetcher(),
+                new GvkFetcher(importFormatPreferences),
                 new AstrophysicsDataSystem(importFormatPreferences, importerPreferences),
                 new MathSciNet(importFormatPreferences),
                 new ZbMATH(importFormatPreferences),

@@ -32,6 +32,7 @@ import org.jabref.model.search.rules.SearchRules.SearchFlags;
 import org.jabref.model.strings.StringUtil;
 import org.jabref.model.util.FileUpdateMonitor;
 
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
@@ -39,7 +40,7 @@ import org.slf4j.LoggerFactory;
  */
 public class GroupsParser {
 
-    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(GroupsParser.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(GroupsParser.class);
 
     private GroupsParser() {
     }
@@ -137,7 +138,7 @@ public class GroupsParser {
                 // Problem accessing file -> create without file monitoring
                 LOGGER.warn("Could not access file {}. The group {} will not reflect changes to the aux file.", path, name, ex);
 
-                TexGroup newGroup = TexGroup.createWithoutFileMonitoring(name, context, path, new DefaultAuxParser(new BibDatabase()), fileMonitor, metaData);
+                TexGroup newGroup = TexGroup.create(name, context, path, new DefaultAuxParser(new BibDatabase()), metaData);
                 addGroupDetails(tok, newGroup);
                 return newGroup;
             }

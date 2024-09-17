@@ -64,7 +64,7 @@ public class FileNodeViewModel {
      */
     public String getDisplayText() {
         if (path.toFile().isDirectory()) {
-            return String.format("%s (%s %s)", path.getFileName(), fileCount,
+            return "%s (%s %s)".formatted(path.getFileName(), fileCount,
                     fileCount == 1 ? Localization.lang("file") : Localization.lang("files"));
         }
         return path.getFileName().toString();
@@ -76,7 +76,7 @@ public class FileNodeViewModel {
      */
     public String getDisplayTextWithEditDate() {
         if (path.toFile().isDirectory()) {
-            return String.format("%s (%s %s)", path.getFileName(), fileCount,
+            return "%s (%s %s)".formatted(path.getFileName(), fileCount,
                     fileCount == 1 ? Localization.lang("file") : Localization.lang("files"));
         }
         FileTime lastEditedTime = null;
@@ -85,12 +85,12 @@ public class FileNodeViewModel {
         } catch (IOException e) {
             LOGGER.error("Exception Caught", e);
         }
-        return String.format("%s (%s: %s)", path.getFileName().toString(), Localization.lang("last edited"), formatDateTime(lastEditedTime));
+        return "%s (%s: %s)".formatted(path.getFileName().toString(), Localization.lang("last edited"), formatDateTime(lastEditedTime));
     }
 
     @Override
     public String toString() {
-        return String.format("FileNodeViewModel{path=%s, children=%s, fileCount=%s}",
+        return "FileNodeViewModel{path=%s, children=%s, fileCount=%s}".formatted(
                 this.path,
                 this.children,
                 this.fileCount);

@@ -48,7 +48,8 @@ class GroupTreeViewModelTest {
         when(preferencesService.getGroupsPreferences()).thenReturn(new GroupsPreferences(
                 GroupViewMode.UNION,
                 true,
-                true));
+                true,
+                GroupHierarchyType.INDEPENDENT));
         groupTree = new GroupTreeViewModel(stateManager, mock(DialogService.class), preferencesService, taskExecutor, new CustomLocalDragboard());
     }
 
@@ -60,7 +61,7 @@ class GroupTreeViewModelTest {
 
     @Test
     void rootGroupIsSelectedByDefault() {
-        assertEquals(groupTree.rootGroupProperty().get().getGroupNode(), stateManager.getSelectedGroup(databaseContext).get(0));
+        assertEquals(groupTree.rootGroupProperty().get().getGroupNode(), stateManager.getSelectedGroups(databaseContext).getFirst());
     }
 
     @Test

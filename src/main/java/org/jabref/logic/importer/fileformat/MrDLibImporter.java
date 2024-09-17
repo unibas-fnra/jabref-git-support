@@ -17,8 +17,8 @@ import org.jabref.model.database.BibDatabase;
 import org.jabref.model.entry.BibEntry;
 import org.jabref.model.entry.field.StandardField;
 
-import kong.unirest.json.JSONException;
-import kong.unirest.json.JSONObject;
+import kong.unirest.core.json.JSONException;
+import kong.unirest.core.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,9 +74,8 @@ public class MrDLibImporter extends Importer {
      *
      * @param input Takes a BufferedReader with a reference to the JSON document delivered by mdl server.
      * @return Returns an String containing the JSON document.
-     * @throws IOException
      */
-    private String convertToString(BufferedReader input) throws IOException {
+    private String convertToString(BufferedReader input) {
         String line;
         StringBuilder stringBuilder = new StringBuilder();
         try {

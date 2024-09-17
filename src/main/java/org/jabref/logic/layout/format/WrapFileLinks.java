@@ -9,8 +9,8 @@ import java.util.Map;
 
 import org.jabref.logic.importer.util.FileFieldParser;
 import org.jabref.logic.layout.AbstractParamLayoutFormatter;
+import org.jabref.logic.util.io.FileUtil;
 import org.jabref.model.entry.LinkedFile;
-import org.jabref.model.util.FileHelper;
 
 /**
  * This formatter iterates over all file links, or all file links of a specified
@@ -161,7 +161,7 @@ public class WrapFileLinks extends AbstractParamLayoutFormatter {
     @Override
     public void setArgument(String arg) {
         List<String> parts = AbstractParamLayoutFormatter.parseArgument(arg);
-        format = parseFormatString(parts.get(0));
+        format = parseFormatString(parts.getFirst());
         if ((parts.size() > 1) && !parts.get(1).trim().isEmpty()) {
             fileType = parts.get(1);
         }
@@ -219,7 +219,7 @@ public class WrapFileLinks extends AbstractParamLayoutFormatter {
 
                             break;
                         case FILE_EXTENSION:
-                            FileHelper.getFileExtension(flEntry.getLink())
+                            FileUtil.getFileExtension(flEntry.getLink())
                                       .ifPresent(extension -> sb.append(replaceStrings(extension)));
                             break;
                         case FILE_TYPE:

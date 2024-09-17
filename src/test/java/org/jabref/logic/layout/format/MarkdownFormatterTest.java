@@ -1,12 +1,15 @@
 package org.jabref.logic.layout.format;
 
+import java.util.stream.Stream;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MarkdownFormatterTest {
 
@@ -18,40 +21,74 @@ class MarkdownFormatterTest {
     }
 
     @Test
-    void formatWhenFormattingPlainTextThenReturnsTextWrappedInParagraph() {
-        assertEquals("<p>Hello World</p>", markdownFormatter.format("Hello World"));
-    }
-
-    @Test
-    void formatWhenFormattingComplexMarkupThenReturnsOnlyOneLine() {
-        assertFalse(markdownFormatter.format("Markup\n\n* list item one\n* list item 2\n\n rest").contains("\n"));
-    }
-
-    @Test
-    void formatWhenFormattingEmptyStringThenReturnsEmptyString() {
-        assertEquals("", markdownFormatter.format(""));
-    }
-
-    @Test
     void formatWhenFormattingNullThenThrowsException() {
         Exception exception = assertThrows(NullPointerException.class, () -> markdownFormatter.format(null));
         assertEquals("Field Text should not be null, when handed to formatter", exception.getMessage());
     }
 
-    @Test
-    void formatWhenMarkupContainingStrikethroughThenContainsMatchingDel() {
-        // Only test strikethrough extension
-        assertTrue(markdownFormatter.format("a ~~b~~ b").contains("<del>b</del>"));
+    private static Stream<Arguments> provideMarkdownAndHtml() {
+        return Stream.of(
+                Arguments.of("Hello World", "<p>Hello World</p>"),
+                Arguments.of("""
+                        Markup
+                        
+                        * list item one
+                        * list item two
+                        
+                         rest
+                        """,
+                        "<p>Markup</p> <ul> <li>list item one</li> <li>list item two</li> </ul> <p>rest</p>"
+                ),
+                Arguments.of("""
+                        ```
+                        Hello World
+                        ```
+                        """,
+                        "<pre><code>Hello World </code></pre>"
+                ),
+                Arguments.of("""
+                       First line
+                    
+                       Second line
+                    
+                       ```java
+                       String test;
+                       ```
+                    """,
+                    "<p>First line</p> <p>Second line</p> <pre><code class=\"language-java\">String test; </code></pre>"
+                ),
+                Arguments.of("""
+                       Some text.
+                       ```javascript
+                       let test = "Hello World";
+                       ```
+                    
+                       ```java
+                       String test = "Hello World";
+                       ```
+                       Some more text.
+                    """,
+                    "<p>Some text.</p> <pre><code class=\"language-javascript\">let test = &quot;Hello World&quot;; " +
+                            "</code></pre> <pre><code class=\"language-java\">String test = &quot;Hello World&quot;; " +
+                            "</code></pre> <p>Some more text.</p>"
+                ),
+                Arguments.of("""
+                        Some text.
+                        
+                        ```java
+                        int foo = 0;
+                        foo = 1;
+                        
+                        ```
+                        """,
+                        "<p>Some text.</p> <pre><code class=\"language-java\">int foo = 0; foo = 1;  </code></pre>"
+                )
+        );
     }
 
-    @Test
-    void formatWhenMarkupContainingTaskListThenContainsFormattedTaskList() {
-        String actual = markdownFormatter.format("Some text\n" +
-                "* [ ] open task\n" +
-                "* [x] closed task\n\n" +
-                "some other text");
-        // Only test list items
-        assertTrue(actual.contains("<li class=\"task-list-item\"><input type=\"checkbox\" class=\"task-list-item-checkbox\" disabled=\"disabled\" readonly=\"readonly\" />&nbsp;open task</li>"));
-        assertTrue(actual.contains("<li class=\"task-list-item\"><input type=\"checkbox\" class=\"task-list-item-checkbox\" checked=\"checked\" disabled=\"disabled\" readonly=\"readonly\" />&nbsp;closed task</li>"));
+    @ParameterizedTest
+    @MethodSource("provideMarkdownAndHtml")
+    void formatWhenFormattingCodeBlockThenReturnsCodeBlockInHtml(String markdown, String expectedHtml) {
+        assertEquals(expectedHtml, markdownFormatter.format(markdown));
     }
 }

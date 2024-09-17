@@ -3,6 +3,7 @@ package org.jabref.gui.entryeditor;
 import java.util.Optional;
 
 import javafx.scene.control.ProgressIndicator;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.StackPane;
 import javafx.scene.web.WebView;
 
@@ -13,6 +14,8 @@ import org.jabref.model.entry.field.StandardField;
 import org.jabref.model.entry.identifier.MathSciNetId;
 
 public class MathSciNetTab extends EntryEditorTab {
+
+    public static final String NAME = "MathSciNet Review";
 
     public MathSciNetTab() {
         setText(Localization.lang("MathSciNet Review"));
@@ -29,7 +32,7 @@ public class MathSciNetTab extends EntryEditorTab {
         WebView browser = WebViewStore.get();
 
         // Quick hack to disable navigating
-        browser.addEventFilter(javafx.scene.input.MouseEvent.ANY, javafx.scene.input.MouseEvent::consume);
+        browser.addEventFilter(MouseEvent.ANY, MouseEvent::consume);
         browser.setContextMenuEnabled(false);
 
         root.getChildren().addAll(browser, progress);

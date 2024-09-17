@@ -9,7 +9,7 @@ import java.util.stream.Collectors;
 
 import org.jabref.logic.cleanup.FieldFormatterCleanup;
 import org.jabref.logic.cleanup.MoveFieldCleanup;
-import org.jabref.logic.formatter.bibtexfields.RemoveBracesFormatter;
+import org.jabref.logic.formatter.bibtexfields.RemoveEnclosingBracesFormatter;
 import org.jabref.logic.importer.EntryBasedParserFetcher;
 import org.jabref.logic.importer.FetcherException;
 import org.jabref.logic.importer.IdBasedParserFetcher;
@@ -23,13 +23,12 @@ import org.jabref.model.entry.BibEntry;
 import org.jabref.model.entry.field.AMSField;
 import org.jabref.model.entry.field.StandardField;
 import org.jabref.model.entry.field.UnknownField;
-import org.jabref.model.util.DummyFileUpdateMonitor;
 
-import kong.unirest.HttpResponse;
-import kong.unirest.JsonNode;
-import kong.unirest.Unirest;
-import kong.unirest.json.JSONArray;
-import org.apache.http.client.utils.URIBuilder;
+import kong.unirest.core.HttpResponse;
+import kong.unirest.core.JsonNode;
+import kong.unirest.core.Unirest;
+import kong.unirest.core.json.JSONArray;
+import org.apache.hc.core5.net.URIBuilder;
 import org.apache.lucene.queryparser.flexible.core.nodes.QueryNode;
 
 /**
@@ -72,7 +71,7 @@ public class ZbMATH implements SearchBasedParserFetcher, IdBasedParserFetcher, E
             // replace "and" by ";" as citation matching API uses ";" for separation
             AuthorList authors = AuthorList.parse(entry.getFieldOrAlias(StandardField.AUTHOR).get());
             String authorsWithSemicolon = authors.getAuthors().stream()
-                                                 .map(author -> author.getLastFirst(false))
+                                                 .map(author -> author.getFamilyGiven(false))
                                                  .collect(Collectors.joining(";"));
             uriBuilder.addParameter("a", authorsWithSemicolon);
         }
@@ -90,7 +89,7 @@ public class ZbMATH implements SearchBasedParserFetcher, IdBasedParserFetcher, E
             JSONArray result = response.getBody()
                                        .getObject()
                                        .getJSONArray("results");
-            if (result.length() > 0) {
+            if (!result.isEmpty()) {
                 zblid = result.getJSONObject(0)
                               .get("zbl_id")
                               .toString();
@@ -125,14 +124,14 @@ public class ZbMATH implements SearchBasedParserFetcher, IdBasedParserFetcher, E
 
     @Override
     public Parser getParser() {
-        return new BibtexParser(preferences, new DummyFileUpdateMonitor());
+        return new BibtexParser(preferences);
     }
 
     @Override
     public void doPostCleanup(BibEntry entry) {
         new MoveFieldCleanup(new UnknownField("msc2010"), StandardField.KEYWORDS).cleanup(entry);
         new MoveFieldCleanup(AMSField.FJOURNAL, StandardField.JOURNAL).cleanup(entry);
-        new FieldFormatterCleanup(StandardField.JOURNAL, new RemoveBracesFormatter()).cleanup(entry);
-        new FieldFormatterCleanup(StandardField.TITLE, new RemoveBracesFormatter()).cleanup(entry);
+        new FieldFormatterCleanup(StandardField.JOURNAL, new RemoveEnclosingBracesFormatter()).cleanup(entry);
+        new FieldFormatterCleanup(StandardField.TITLE, new RemoveEnclosingBracesFormatter()).cleanup(entry);
     }
 }

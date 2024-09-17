@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.nio.file.Path;
-import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -24,8 +24,6 @@ import org.jabref.model.entry.field.StandardField;
 import org.jabref.model.entry.types.EntryTypeFactory;
 import org.jabref.model.entry.types.StandardEntryType;
 import org.jabref.model.entry.types.UnknownEntryType;
-import org.jabref.model.util.DummyFileUpdateMonitor;
-import org.jabref.model.util.FileUpdateMonitor;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -45,28 +43,27 @@ class BibEntryWriterTest {
     private final StringWriter stringWriter = new StringWriter();
     private BibWriter bibWriter = new BibWriter(stringWriter, OS.NEWLINE);
     private BibEntryWriter bibEntryWriter;
-    private final FileUpdateMonitor fileMonitor = new DummyFileUpdateMonitor();
 
     @BeforeEach
     void setUpWriter() {
         importFormatPreferences = mock(ImportFormatPreferences.class, Answers.RETURNS_DEEP_STUBS);
-        FieldWriterPreferences fieldWriterPreferences = new FieldWriterPreferences(true, List.of(StandardField.MONTH), new FieldContentFormatterPreferences());
-        bibEntryWriter = new BibEntryWriter(new FieldWriter(fieldWriterPreferences), new BibEntryTypesManager());
+        FieldPreferences fieldPreferences = new FieldPreferences(true, List.of(StandardField.MONTH), Collections.emptyList());
+        bibEntryWriter = new BibEntryWriter(new FieldWriter(fieldPreferences), new BibEntryTypesManager());
     }
 
     @Test
-    void testSerialization() throws IOException {
-        BibEntry entry = new BibEntry(StandardEntryType.Article);
-        // set a required field
-        entry.setField(StandardField.AUTHOR, "Foo Bar");
-        entry.setField(StandardField.JOURNAL, "International Journal of Something");
-        // set an optional field
-        entry.setField(StandardField.NUMBER, "1");
-        entry.setField(StandardField.NOTE, "some note");
+    void serialization() throws Exception {
+        BibEntry entry = new BibEntry(StandardEntryType.Article)
+                // set required fields
+                .withField(StandardField.AUTHOR, "Foo Bar")
+                .withField(StandardField.JOURNAL, "International Journal of Something")
+                // set optional fields
+                .withField(StandardField.NUMBER, "1")
+                .withField(StandardField.NOTE, "some note")
+                .withChanged(true);
 
         bibEntryWriter.write(entry, bibWriter, BibDatabaseMode.BIBTEX);
 
-        // @formatter:off
         String expected = """
                 @Article{,
                   author  = {Foo Bar},
@@ -74,10 +71,39 @@ class BibEntryWriterTest {
                   note    = {some note},
                   number  = {1},
                 }
-                """.replaceAll("\n", OS.NEWLINE);
-        // @formatter:on
+                """.replace("\n", OS.NEWLINE);
 
         assertEquals(expected, stringWriter.toString());
+    }
+
+    @Test
+    void bibEntryTwoSpacesBeforeAndAfterKept() throws Exception {
+        BibEntry entry = new BibEntry(StandardEntryType.Article)
+                .withField(StandardField.AUTHOR, "  two spaces before and after (before)  ")
+                .withChanged(true);
+
+        bibEntryWriter.write(entry, bibWriter, BibDatabaseMode.BIBTEX);
+
+        String expected = """
+                @Article{,
+                  author = {  two spaces before and after (before)  },
+                }
+                """.replace("\n", OS.NEWLINE);
+
+        assertEquals(expected, stringWriter.toString());
+    }
+
+    @Test
+    void bibEntryNotModified() throws Exception {
+        BibEntry entry = new BibEntry(StandardEntryType.Article)
+                .withField(StandardField.AUTHOR, "  two spaces before and after  ")
+                .withChanged(true);
+
+        BibEntry original = (BibEntry) entry.clone();
+
+        bibEntryWriter.write(entry, bibWriter, BibDatabaseMode.BIBTEX);
+
+        assertEquals(original, entry);
     }
 
     @Test
@@ -86,11 +112,12 @@ class BibEntryWriterTest {
                 @Other{test,
                   comment = {testentry},
                 }
-                """.replaceAll("\n", OS.NEWLINE);
+                """.replace("\n", OS.NEWLINE);
 
-        BibEntry entry = new BibEntry(new UnknownEntryType("other"));
-        entry.setField(StandardField.COMMENT, "testentry");
-        entry.setCitationKey("test");
+        BibEntry entry = new BibEntry(new UnknownEntryType("other"))
+                .withField(StandardField.COMMENT, "testentry")
+                .withCitationKey("test")
+                .withChanged(true);
 
         bibEntryWriter.write(entry, bibWriter, BibDatabaseMode.BIBTEX);
         assertEquals(expected, stringWriter.toString());
@@ -108,22 +135,22 @@ class BibEntryWriterTest {
                 @Article{,
                   file = {test:/home/uers/test.pdf:PDF},
                 }
-                """.replaceAll("\n", OS.NEWLINE), stringWriter.toString());
+                """.replace("\n", OS.NEWLINE), stringWriter.toString());
     }
 
     @Test
     void writeEntryWithOrField() throws Exception {
-        BibEntry entry = new BibEntry(StandardEntryType.InBook);
-        // set an required OR field (author/editor)
-        entry.setField(StandardField.EDITOR, "Foo Bar");
-        entry.setField(StandardField.JOURNAL, "International Journal of Something");
-        // set an optional field
-        entry.setField(StandardField.NUMBER, "1");
-        entry.setField(StandardField.NOTE, "some note");
+        BibEntry entry = new BibEntry(StandardEntryType.InBook)
+                // set a required OR field (author/editor)
+                .withField(StandardField.EDITOR, "Foo Bar")
+                .withField(StandardField.JOURNAL, "International Journal of Something")
+                // set an optional field
+                .withField(StandardField.NUMBER, "1")
+                .withField(StandardField.NOTE, "some note")
+                .withChanged(true);
 
         bibEntryWriter.write(entry, bibWriter, BibDatabaseMode.BIBTEX);
 
-        // @formatter:off
         String expected = """
                 @InBook{,
                   editor  = {Foo Bar},
@@ -131,26 +158,25 @@ class BibEntryWriterTest {
                   number  = {1},
                   journal = {International Journal of Something},
                 }
-                """.replaceAll("\n", OS.NEWLINE);
-        // @formatter:on
+                """.replace("\n", OS.NEWLINE);
 
         assertEquals(expected, stringWriter.toString());
     }
 
     @Test
     void writeEntryWithOrFieldBothFieldsPresent() throws Exception {
-        BibEntry entry = new BibEntry(StandardEntryType.InBook);
-        // set an required OR field with both fields(author/editor)
-        entry.setField(StandardField.AUTHOR, "Foo Thor");
-        entry.setField(StandardField.EDITOR, "Edi Bar");
-        entry.setField(StandardField.JOURNAL, "International Journal of Something");
-        // set an optional field
-        entry.setField(StandardField.NUMBER, "1");
-        entry.setField(StandardField.NOTE, "some note");
+        BibEntry entry = new BibEntry(StandardEntryType.InBook)
+                // set a required OR field with both fields(author/editor)
+                .withField(StandardField.AUTHOR, "Foo Thor")
+                .withField(StandardField.EDITOR, "Edi Bar")
+                .withField(StandardField.JOURNAL, "International Journal of Something")
+                // set an optional field
+                .withField(StandardField.NUMBER, "1")
+                .withField(StandardField.NOTE, "some note")
+                .withChanged(true);
 
         bibEntryWriter.write(entry, bibWriter, BibDatabaseMode.BIBTEX);
 
-        // @formatter:off
         String expected = """
                 @InBook{,
                   author  = {Foo Thor},
@@ -159,8 +185,7 @@ class BibEntryWriterTest {
                   number  = {1},
                   journal = {International Journal of Something},
                 }
-                """.replaceAll("\n", OS.NEWLINE);
-        // @formatter:on
+                """.replace("\n", OS.NEWLINE);
 
         assertEquals(expected, stringWriter.toString());
     }
@@ -171,7 +196,7 @@ class BibEntryWriterTest {
                 @Reallyunknowntype{test,
                   comment = {testentry},
                 }
-                """.replaceAll("\n", OS.NEWLINE);
+                """.replace("\n", OS.NEWLINE);
 
         BibEntry entry = new BibEntry();
         entry.setType(new UnknownEntryType("ReallyUnknownType"));
@@ -184,7 +209,6 @@ class BibEntryWriterTest {
 
     @Test
     void roundTripTest() throws IOException {
-        // @formatter:off
         String bibtexEntry = """
                 @Article{test,
                   Author                   = {Foo Bar},
@@ -192,13 +216,65 @@ class BibEntryWriterTest {
                   Note                     = {some note},
                   Number                   = {1}
                 }
-                """.replaceAll("\n", OS.NEWLINE);
-        // @formatter:on
+                """.replace("\n", OS.NEWLINE);
 
         // read in bibtex string
-        ParserResult result = new BibtexParser(importFormatPreferences, fileMonitor).parse(new StringReader(bibtexEntry));
-        Collection<BibEntry> entries = result.getDatabase().getEntries();
-        BibEntry entry = entries.iterator().next();
+        ParserResult result = new BibtexParser(importFormatPreferences).parse(new StringReader(bibtexEntry));
+        BibEntry entry = result.getDatabase().getEntries().getFirst();
+
+        // write out bibtex string
+        bibEntryWriter.write(entry, bibWriter, BibDatabaseMode.BIBTEX);
+
+        assertEquals(bibtexEntry, stringWriter.toString());
+    }
+
+    @Test
+    void roundTripKeepsFilePathWithBackslashes() throws IOException {
+        String bibtexEntry = """
+                @Article{,
+                  file = {Tagungen\\2013\\KWTK45},
+                }
+                """.replace("\n", OS.NEWLINE);
+
+        // read in bibtex string
+        ParserResult result = new BibtexParser(importFormatPreferences).parse(new StringReader(bibtexEntry));
+        BibEntry entry = result.getDatabase().getEntries().getFirst();
+
+        // write out bibtex string
+        bibEntryWriter.write(entry, bibWriter, BibDatabaseMode.BIBTEX);
+
+        assertEquals(bibtexEntry, stringWriter.toString());
+    }
+
+    @Test
+    void roundTripKeepsEscapedCharacters() throws IOException {
+        String bibtexEntry = """
+                @Article{,
+                  demofield = {Tagungen\\2013\\KWTK45},
+                }
+                """.replace("\n", OS.NEWLINE);
+
+        // read in bibtex string
+        ParserResult result = new BibtexParser(importFormatPreferences).parse(new StringReader(bibtexEntry));
+        BibEntry entry = result.getDatabase().getEntries().getFirst();
+
+        // write out bibtex string
+        bibEntryWriter.write(entry, bibWriter, BibDatabaseMode.BIBTEX);
+
+        assertEquals(bibtexEntry, stringWriter.toString());
+    }
+
+    @Test
+    void roundTripKeepsFilePathEndingWithBackslash() throws IOException {
+        String bibtexEntry = """
+                @Article{,
+                  file = {dir\\},
+                }
+                """.replace("\n", OS.NEWLINE);
+
+        // read in bibtex string
+        ParserResult result = new BibtexParser(importFormatPreferences).parse(new StringReader(bibtexEntry));
+        BibEntry entry = result.getDatabase().getEntries().getFirst();
 
         // write out bibtex string
         bibEntryWriter.write(entry, bibWriter, BibDatabaseMode.BIBTEX);
@@ -218,9 +294,8 @@ class BibEntryWriterTest {
         // @formatter:on
 
         // read in bibtex string
-        ParserResult result = new BibtexParser(importFormatPreferences, fileMonitor).parse(new StringReader(bibtexEntry));
-        Collection<BibEntry> entries = result.getDatabase().getEntries();
-        BibEntry entry = entries.iterator().next();
+        ParserResult result = new BibtexParser(importFormatPreferences).parse(new StringReader(bibtexEntry));
+        BibEntry entry = result.getDatabase().getEntries().getFirst();
 
         // write out bibtex string
         bibEntryWriter.write(entry, bibWriter, BibDatabaseMode.BIBTEX);
@@ -240,9 +315,8 @@ class BibEntryWriterTest {
         // @formatter:on
 
         // read in bibtex string
-        ParserResult result = new BibtexParser(importFormatPreferences, fileMonitor).parse(new StringReader(bibtexEntry));
-        Collection<BibEntry> entries = result.getDatabase().getEntries();
-        BibEntry entry = entries.iterator().next();
+        ParserResult result = new BibtexParser(importFormatPreferences).parse(new StringReader(bibtexEntry));
+        BibEntry entry = result.getDatabase().getEntries().getFirst();
 
         // write out bibtex string
         // need to reconfigure writer to use "\r\n"
@@ -264,9 +338,8 @@ class BibEntryWriterTest {
         // @formatter:on
 
         // read in bibtex string
-        ParserResult result = new BibtexParser(importFormatPreferences, fileMonitor).parse(new StringReader(bibtexEntry));
-        Collection<BibEntry> entries = result.getDatabase().getEntries();
-        BibEntry entry = entries.iterator().next();
+        ParserResult result = new BibtexParser(importFormatPreferences).parse(new StringReader(bibtexEntry));
+        BibEntry entry = result.getDatabase().getEntries().getFirst();
 
         // write out bibtex string
         // need to reconfigure writer to use "\n"
@@ -286,13 +359,12 @@ class BibEntryWriterTest {
                   Note                     = {some note},
                   Number                   = {1},
                 }
-                """.replaceAll("\n", OS.NEWLINE);
+                """.replace("\n", OS.NEWLINE);
         // @formatter:on
 
         // read in bibtex string
-        ParserResult result = new BibtexParser(importFormatPreferences, fileMonitor).parse(new StringReader(bibtexEntry));
-        Collection<BibEntry> entries = result.getDatabase().getEntries();
-        BibEntry entry = entries.iterator().next();
+        ParserResult result = new BibtexParser(importFormatPreferences).parse(new StringReader(bibtexEntry));
+        BibEntry entry = result.getDatabase().getEntries().getFirst();
 
         // Modify entry
         entry.setField(StandardField.AUTHOR, "BlaBla");
@@ -308,7 +380,7 @@ class BibEntryWriterTest {
                   note    = {some note},
                   number  = {1},
                 }
-                """.replaceAll("\n", OS.NEWLINE);
+                """.replace("\n", OS.NEWLINE);
         // @formatter:on
         assertEquals(expected, stringWriter.toString());
     }
@@ -324,13 +396,12 @@ class BibEntryWriterTest {
                   Note                     = {some note},
                   HowPublished             = {asdf},
                 }
-                """.replaceAll("\n", OS.NEWLINE);
+                """.replace("\n", OS.NEWLINE);
         // @formatter:on
 
         // read in bibtex string
-        ParserResult result = new BibtexParser(importFormatPreferences, fileMonitor).parse(new StringReader(bibtexEntry));
-        Collection<BibEntry> entries = result.getDatabase().getEntries();
-        BibEntry entry = entries.iterator().next();
+        ParserResult result = new BibtexParser(importFormatPreferences).parse(new StringReader(bibtexEntry));
+        BibEntry entry = result.getDatabase().getEntries().getFirst();
 
         // modify entry
         entry.setField(StandardField.AUTHOR, "BlaBla");
@@ -347,13 +418,13 @@ class BibEntryWriterTest {
                   number       = {1},
                   howpublished = {asdf},
                 }
-                """.replaceAll("\n", OS.NEWLINE);
+                """.replace("\n", OS.NEWLINE);
         // @formatter:on
         assertEquals(expected, stringWriter.toString());
     }
 
     @Test
-    void testEntryTypeChange() throws IOException {
+    void entryTypeChange() throws IOException {
         // @formatter:off
         String expected = """
 
@@ -364,13 +435,12 @@ class BibEntryWriterTest {
                   note         = {some note},
                   howpublished = {asdf},
                 }
-                """.replaceAll("\n", OS.NEWLINE);
+                """.replace("\n", OS.NEWLINE);
         // @formatter:on
 
         // read in bibtex string
-        ParserResult result = new BibtexParser(importFormatPreferences, fileMonitor).parse(new StringReader(expected));
-        Collection<BibEntry> entries = result.getDatabase().getEntries();
-        BibEntry entry = entries.iterator().next();
+        ParserResult result = new BibtexParser(importFormatPreferences).parse(new StringReader(expected));
+        BibEntry entry = result.getDatabase().getEntries().getFirst();
 
         // modify entry
         entry.setType(StandardEntryType.InProceedings);
@@ -387,7 +457,7 @@ class BibEntryWriterTest {
                   howpublished = {asdf},
                   journal      = {International Journal of Something},
                 }
-                """.replaceAll("\n", OS.NEWLINE);
+                """.replace("\n", OS.NEWLINE);
         // @formatter:on
         assertEquals(expectedNewEntry, stringWriter.toString());
     }
@@ -404,9 +474,8 @@ class BibEntryWriterTest {
         // @formatter:on
 
         // read in bibtex string
-        ParserResult result = new BibtexParser(importFormatPreferences, fileMonitor).parse(new StringReader(bibtexEntry));
-        Collection<BibEntry> entries = result.getDatabase().getEntries();
-        BibEntry entry = entries.iterator().next();
+        ParserResult result = new BibtexParser(importFormatPreferences).parse(new StringReader(bibtexEntry));
+        BibEntry entry = result.getDatabase().getEntries().getFirst();
 
         // write out bibtex string
         bibEntryWriter.write(entry, bibWriter, BibDatabaseMode.BIBTEX);
@@ -429,9 +498,8 @@ class BibEntryWriterTest {
         // @formatter:on
 
         // read in bibtex string
-        ParserResult result = new BibtexParser(importFormatPreferences, fileMonitor).parse(new StringReader(bibtexEntry));
-        Collection<BibEntry> entries = result.getDatabase().getEntries();
-        BibEntry entry = entries.iterator().next();
+        ParserResult result = new BibtexParser(importFormatPreferences).parse(new StringReader(bibtexEntry));
+        BibEntry entry = result.getDatabase().getEntries().getFirst();
 
         // write out bibtex string
         bibEntryWriter.write(entry, bibWriter, BibDatabaseMode.BIBTEX);
@@ -456,7 +524,7 @@ class BibEntryWriterTest {
                   Note                     = {some note},
                   Number                   = {1}
                 }
-                """.replaceAll("\n", OS.NEWLINE);
+                """.replace("\n", OS.NEWLINE);
         // @formatter:on
 
         String result = testSingleWrite(bibtexEntry);
@@ -468,9 +536,8 @@ class BibEntryWriterTest {
 
     private String testSingleWrite(String bibtexEntry) throws IOException {
         // read in bibtex string
-        ParserResult result = new BibtexParser(importFormatPreferences, fileMonitor).parse(new StringReader(bibtexEntry));
-        Collection<BibEntry> entries = result.getDatabase().getEntries();
-        BibEntry entry = entries.iterator().next();
+        ParserResult result = new BibtexParser(importFormatPreferences).parse(new StringReader(bibtexEntry));
+        BibEntry entry = result.getDatabase().getEntries().getFirst();
 
         // write out bibtex string
         StringWriter writer = new StringWriter();
@@ -491,13 +558,12 @@ class BibEntryWriterTest {
                   Month                    = mar,
                   Number                   = {1}
                 }
-                """.replaceAll("\n", OS.NEWLINE);
+                """.replace("\n", OS.NEWLINE);
         // @formatter:on
 
         // read in bibtex string
-        ParserResult result = new BibtexParser(importFormatPreferences, fileMonitor).parse(new StringReader(bibtexEntry));
-        Collection<BibEntry> entries = result.getDatabase().getEntries();
-        BibEntry entry = entries.iterator().next();
+        ParserResult result = new BibtexParser(importFormatPreferences).parse(new StringReader(bibtexEntry));
+        BibEntry entry = result.getDatabase().getEntries().getFirst();
 
         // check month field
         Set<Field> fields = entry.getFields();
@@ -531,9 +597,8 @@ class BibEntryWriterTest {
         // @formatter:on
 
         // read in bibtex string
-        ParserResult result = new BibtexParser(importFormatPreferences, fileMonitor).parse(new StringReader(bibtexEntry));
-        Collection<BibEntry> entries = result.getDatabase().getEntries();
-        BibEntry entry = entries.iterator().next();
+        ParserResult result = new BibtexParser(importFormatPreferences).parse(new StringReader(bibtexEntry));
+        BibEntry entry = result.getDatabase().getEntries().getFirst();
 
         entry.setField(FieldFactory.parseField("location"), "NY");
 
@@ -554,7 +619,7 @@ class BibEntryWriterTest {
                   subtitle   = {Encyclopedia of Photography},
                   title      = {International Center of Photography},
                 }
-                """.replaceAll("\n", OS.NEWLINE);
+                """.replace("\n", OS.NEWLINE);
 
         assertEquals(expected, stringWriter.toString());
     }
@@ -572,7 +637,7 @@ class BibEntryWriterTest {
                         @Misc{,
                           month = apr,
                         }
-                        """.replaceAll("\n", OS.NEWLINE),
+                        """.replace("\n", OS.NEWLINE),
                 stringWriter.toString());
     }
 
@@ -589,7 +654,7 @@ class BibEntryWriterTest {
                         @Misc{,
                           month = {apr},
                         }
-                        """.replaceAll("\n", OS.NEWLINE),
+                        """.replace("\n", OS.NEWLINE),
                 stringWriter.toString());
     }
 
@@ -606,12 +671,11 @@ class BibEntryWriterTest {
                       file      = {:Hue17 - Leiter # Halbleiter # Supraleiter.pdf:PDF},
                       timestamp = {2020.10.13},
                 }
-                """.replaceAll("\n", OS.NEWLINE);
+                """.replace("\n", OS.NEWLINE);
 
         // read in bibtex string
-        ParserResult result = new BibtexParser(importFormatPreferences, fileMonitor).parse(new StringReader(bibtexEntry));
-        Collection<BibEntry> entries = result.getDatabase().getEntries();
-        BibEntry entry = entries.iterator().next();
+        ParserResult result = new BibtexParser(importFormatPreferences).parse(new StringReader(bibtexEntry));
+        BibEntry entry = result.getDatabase().getEntries().getFirst();
 
         // write out bibtex string
         bibEntryWriter.write(entry, bibWriter, BibDatabaseMode.BIBTEX);
@@ -631,9 +695,8 @@ class BibEntryWriterTest {
         // @formatter:on
 
         // read in bibtex string
-        ParserResult result = new BibtexParser(importFormatPreferences, fileMonitor).parse(new StringReader(bibtexEntry));
-        Collection<BibEntry> entries = result.getDatabase().getEntries();
-        BibEntry entry = entries.iterator().next();
+        ParserResult result = new BibtexParser(importFormatPreferences).parse(new StringReader(bibtexEntry));
+        BibEntry entry = result.getDatabase().getEntries().getFirst();
 
         // modify entry
         entry.setField(StandardField.HOWPUBLISHED, "asdf");
@@ -687,13 +750,12 @@ class BibEntryWriterTest {
                   Note                     = {some note},
                   Number                   = {1}
                 }
-                """.replaceAll("\n", OS.NEWLINE);
+                """.replace("\n", OS.NEWLINE);
         // @formatter:on
 
         // read in bibtex string
-        ParserResult result = new BibtexParser(importFormatPreferences, fileMonitor).parse(new StringReader(bibtexEntry));
-        Collection<BibEntry> entries = result.getDatabase().getEntries();
-        BibEntry entry = entries.iterator().next();
+        ParserResult result = new BibtexParser(importFormatPreferences).parse(new StringReader(bibtexEntry));
+        BibEntry entry = result.getDatabase().getEntries().getFirst();
 
         // write out bibtex string
         bibEntryWriter.write(entry, bibWriter, BibDatabaseMode.BIBTEX);
@@ -712,13 +774,12 @@ class BibEntryWriterTest {
                   Number                   = {1},
                   Note                     = {some note}
                 }
-                """.replaceAll("\n", OS.NEWLINE);
+                """.replace("\n", OS.NEWLINE);
         // @formatter:on
 
         // read in bibtex string
-        ParserResult result = new BibtexParser(importFormatPreferences, fileMonitor).parse(new StringReader(bibtexEntry));
-        Collection<BibEntry> entries = result.getDatabase().getEntries();
-        BibEntry entry = entries.iterator().next();
+        ParserResult result = new BibtexParser(importFormatPreferences).parse(new StringReader(bibtexEntry));
+        BibEntry entry = result.getDatabase().getEntries().getFirst();
 
         // change the entry
         entry.setField(StandardField.AUTHOR, "John Doe");
@@ -726,7 +787,6 @@ class BibEntryWriterTest {
         // write out bibtex string
         bibEntryWriter.write(entry, bibWriter, BibDatabaseMode.BIBTEX);
 
-        // @formatter:off
         String expected = """
                 % Some random comment that should stay here
                 @Article{test,
@@ -735,8 +795,7 @@ class BibEntryWriterTest {
                   note    = {some note},
                   number  = {1},
                 }
-                """.replaceAll("\n", OS.NEWLINE);
-        // @formatter:on
+                """.replace("\n", OS.NEWLINE);
 
         assertEquals(expected, stringWriter.toString());
     }
@@ -758,7 +817,6 @@ class BibEntryWriterTest {
 
         bibEntryWriter.write(entry, bibWriter, BibDatabaseMode.BIBLATEX);
 
-        // @formatter:off
         String expected = """
                 @Article{,
                   author       = {Foo Bar},
@@ -770,14 +828,13 @@ class BibEntryWriterTest {
                   chapter      = {chapter},
                   year         = {2019},
                 }
-                """.replaceAll("\n", OS.NEWLINE);
-        // @formatter:on
+                """.replace("\n", OS.NEWLINE);
 
         assertEquals(expected, stringWriter.toString());
     }
 
     @Test
-    void testSerializeAll() throws IOException {
+    void serializeAll() throws IOException {
         BibEntry entry1 = new BibEntry(StandardEntryType.Article);
         // required fields
         entry1.setField(StandardField.AUTHOR, "Journal Author");
@@ -808,7 +865,6 @@ class BibEntryWriterTest {
 
         String output = bibEntryWriter.serializeAll(List.of(entry1, entry2), BibDatabaseMode.BIBLATEX);
 
-        // @formatter:off
         String expected1 = """
                 @Article{,
                   author       = {Journal Author},
@@ -820,10 +876,8 @@ class BibEntryWriterTest {
                   chapter      = {chapter},
                   year         = {2019},
                 }
-                """.replaceAll("\n", OS.NEWLINE);
-        // @formatter:on
+                """.replace("\n", OS.NEWLINE);
 
-        // @formatter:off
         String expected2 = """
                 @Book{,
                   author    = {John Book},
@@ -835,13 +889,12 @@ class BibEntryWriterTest {
                   booktitle = {The Big Book of Books},
                   year      = {2020},
                 }
-                """.replaceAll("\n", OS.NEWLINE);
-        // @formatter:on
+                """.replace("\n", OS.NEWLINE);
 
         assertEquals(expected1 + OS.NEWLINE + expected2, output);
     }
 
-    static Stream<Arguments> testGetFormattedFieldNameData() {
+    static Stream<Arguments> getFormattedFieldName() {
         return Stream.of(
                 Arguments.of(" = ", "", 0),
                 Arguments.of("a = ", "a", 0),
@@ -853,13 +906,13 @@ class BibEntryWriterTest {
     }
 
     @ParameterizedTest
-    @MethodSource("testGetFormattedFieldNameData")
-    void testGetFormattedFieldName(String expected, String fieldName, int indent) {
+    @MethodSource
+    void getFormattedFieldName(String expected, String fieldName, int indent) {
         Field field = FieldFactory.parseField(fieldName);
         assertEquals(expected, BibEntryWriter.getFormattedFieldName(field, indent));
     }
 
-    static Stream<Arguments> testGetLengthOfLongestFieldNameData() {
+    static Stream<Arguments> getLengthOfLongestFieldName() {
         return Stream.of(
                 Arguments.of(1, new BibEntry().withField(FieldFactory.parseField("t"), "t")),
                 Arguments.of(5, new BibEntry(EntryTypeFactory.parse("reference"))
@@ -869,8 +922,8 @@ class BibEntryWriterTest {
     }
 
     @ParameterizedTest
-    @MethodSource("testGetLengthOfLongestFieldNameData")
-    void testGetLengthOfLongestFieldName(int expected, BibEntry entry) {
+    @MethodSource
+    void getLengthOfLongestFieldName(int expected, BibEntry entry) {
         assertEquals(expected, BibEntryWriter.getLengthOfLongestFieldName(entry));
     }
 }

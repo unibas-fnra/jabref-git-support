@@ -17,6 +17,7 @@ import org.jabref.model.openoffice.uno.UnoScreenRefresh;
 import com.sun.star.beans.IllegalTypeException;
 import com.sun.star.beans.NotRemoveableException;
 import com.sun.star.beans.PropertyVetoException;
+import com.sun.star.lang.IllegalArgumentException;
 import com.sun.star.lang.WrappedTargetException;
 import com.sun.star.text.XTextCursor;
 import com.sun.star.text.XTextDocument;
@@ -38,7 +39,7 @@ public class EditSeparate {
             NotRemoveableException,
             PropertyVetoException,
             WrappedTargetException,
-            com.sun.star.lang.IllegalArgumentException {
+            IllegalArgumentException {
 
         boolean madeModifications = false;
 
@@ -55,9 +56,9 @@ public class EditSeparate {
             UnoScreenRefresh.lockControllers(doc);
 
             for (CitationGroup group : groups) {
-                XTextRange range1 = (frontend
+                XTextRange range1 = frontend
                         .getMarkRange(doc, group)
-                        .orElseThrow(IllegalStateException::new));
+                        .orElseThrow(IllegalStateException::new);
                 XTextCursor textCursor = range1.getText().createTextCursorByRange(range1);
 
                 List<Citation> citations = group.citationsInStorageOrder;
@@ -71,7 +72,7 @@ public class EditSeparate {
                 // Create a citation group for each citation.
                 final int last = citations.size() - 1;
                 for (int i = 0; i < citations.size(); i++) {
-                    boolean insertSpaceAfter = (i != last);
+                    boolean insertSpaceAfter = i != last;
                     Citation citation = citations.get(i);
 
                     UpdateCitationMarkers.createAndFillCitationGroup(frontend,

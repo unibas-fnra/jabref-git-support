@@ -5,7 +5,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import org.jabref.logic.citationkeypattern.GlobalCitationKeyPattern;
+import javafx.collections.FXCollections;
+
+import org.jabref.logic.bibtex.FieldPreferences;
+import org.jabref.logic.citationkeypattern.GlobalCitationKeyPatterns;
 import org.jabref.logic.cleanup.FieldFormatterCleanup;
 import org.jabref.logic.cleanup.FieldFormatterCleanups;
 import org.jabref.logic.exporter.MetaDataSerializer;
@@ -30,6 +33,8 @@ import org.junit.jupiter.api.parallel.ExecutionMode;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 @DatabaseTest
 @Execution(ExecutionMode.SAME_THREAD)
@@ -37,7 +42,7 @@ public class DBMSSynchronizerTest {
 
     private DBMSSynchronizer dbmsSynchronizer;
     private BibDatabase bibDatabase;
-    private final GlobalCitationKeyPattern pattern = GlobalCitationKeyPattern.fromPattern("[auth][year]");
+    private final GlobalCitationKeyPatterns pattern = GlobalCitationKeyPatterns.fromPattern("[auth][year]");
     private DBMSConnection dbmsConnection;
     private DBMSProcessor dbmsProcessor;
     private DBMSType dbmsType;
@@ -53,7 +58,7 @@ public class DBMSSynchronizerTest {
     @BeforeEach
     public void setup() throws Exception {
         this.dbmsType = TestManager.getDBMSTypeTestParameter();
-        this.dbmsConnection = TestConnector.getTestDBMSConnection(dbmsType);
+        this.dbmsConnection = ConnectorTest.getTestDBMSConnection(dbmsType);
         this.dbmsProcessor = DBMSProcessor.getProcessorInstance(this.dbmsConnection);
         TestManager.clearTables(this.dbmsConnection);
         this.dbmsProcessor.setupSharedDatabase();
@@ -61,7 +66,10 @@ public class DBMSSynchronizerTest {
         bibDatabase = new BibDatabase();
         BibDatabaseContext context = new BibDatabaseContext(bibDatabase);
 
-        dbmsSynchronizer = new DBMSSynchronizer(context, ',', pattern, new DummyFileUpdateMonitor());
+        FieldPreferences fieldPreferences = mock(FieldPreferences.class);
+        when(fieldPreferences.getNonWrappableFields()).thenReturn(FXCollections.observableArrayList());
+
+        dbmsSynchronizer = new DBMSSynchronizer(context, ',', fieldPreferences, pattern, new DummyFileUpdateMonitor());
         bibDatabase.registerListener(dbmsSynchronizer);
 
         dbmsSynchronizer.openSharedDatabase(dbmsConnection);
@@ -73,7 +81,7 @@ public class DBMSSynchronizerTest {
     }
 
     @Test
-    public void testEntryAddedEventListener() throws Exception {
+    public void entryAddedEventListener() throws Exception {
         BibEntry expectedEntry = createExampleBibEntry(1);
         BibEntry furtherEntry = createExampleBibEntry(1);
 
@@ -118,13 +126,13 @@ public class DBMSSynchronizerTest {
     }
 
     @Test
-    public void testEntriesRemovedEventListener() throws Exception {
+    public void entriesRemovedEventListener() throws Exception {
         BibEntry bibEntry = createExampleBibEntry(1);
         bibDatabase.insertEntry(bibEntry);
 
         List<BibEntry> actualEntries = dbmsProcessor.getSharedEntries();
         assertEquals(1, actualEntries.size());
-        assertEquals(bibEntry, actualEntries.get(0));
+        assertEquals(bibEntry, actualEntries.getFirst());
 
         bibDatabase.removeEntry(bibEntry);
         actualEntries = dbmsProcessor.getSharedEntries();
@@ -136,11 +144,11 @@ public class DBMSSynchronizerTest {
 
         actualEntries = dbmsProcessor.getSharedEntries();
         assertEquals(1, actualEntries.size());
-        assertEquals(bibEntry, actualEntries.get(0));
+        assertEquals(bibEntry, actualEntries.getFirst());
     }
 
     @Test
-    public void testMetaDataChangedEventListener() throws Exception {
+    public void metaDataChangedEventListener() throws Exception {
         MetaData testMetaData = new MetaData();
         testMetaData.registerListener(dbmsSynchronizer);
         dbmsSynchronizer.setMetaData(testMetaData);
@@ -154,7 +162,7 @@ public class DBMSSynchronizerTest {
     }
 
     @Test
-    public void testInitializeDatabases() throws Exception {
+    public void initializeDatabases() throws Exception {
         dbmsSynchronizer.initializeDatabases();
         assertTrue(dbmsProcessor.checkBaseIntegrity());
         dbmsSynchronizer.initializeDatabases();
@@ -162,10 +170,10 @@ public class DBMSSynchronizerTest {
     }
 
     @Test
-    public void testSynchronizeLocalDatabaseWithEntryRemoval() throws Exception {
+    public void synchronizeLocalDatabaseWithEntryRemoval() throws Exception {
         List<BibEntry> expectedBibEntries = Arrays.asList(createExampleBibEntry(1), createExampleBibEntry(2));
 
-        dbmsProcessor.insertEntry(expectedBibEntries.get(0));
+        dbmsProcessor.insertEntry(expectedBibEntries.getFirst());
         dbmsProcessor.insertEntry(expectedBibEntries.get(1));
 
         assertTrue(bibDatabase.getEntries().isEmpty());
@@ -174,7 +182,7 @@ public class DBMSSynchronizerTest {
 
         assertEquals(expectedBibEntries, bibDatabase.getEntries());
 
-        dbmsProcessor.removeEntries(Collections.singletonList(expectedBibEntries.get(0)));
+        dbmsProcessor.removeEntries(Collections.singletonList(expectedBibEntries.getFirst()));
 
         expectedBibEntries = Collections.singletonList(expectedBibEntries.get(1));
 
@@ -184,7 +192,7 @@ public class DBMSSynchronizerTest {
     }
 
     @Test
-    public void testSynchronizeLocalDatabaseWithEntryUpdate() throws Exception {
+    public void synchronizeLocalDatabaseWithEntryUpdate() throws Exception {
         BibEntry bibEntry = createExampleBibEntry(1);
         bibDatabase.insertEntry(bibEntry);
         assertEquals(List.of(bibEntry), bibDatabase.getEntries());
@@ -220,7 +228,7 @@ public class DBMSSynchronizerTest {
     }
 
     @Test
-    public void testApplyMetaData() throws Exception {
+    public void applyMetaData() throws Exception {
         BibEntry bibEntry = createExampleBibEntry(1);
         bibDatabase.insertEntry(bibEntry);
 

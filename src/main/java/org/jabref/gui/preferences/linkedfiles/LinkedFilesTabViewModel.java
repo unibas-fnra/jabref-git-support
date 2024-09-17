@@ -39,6 +39,8 @@ public class LinkedFilesTabViewModel implements PreferenceTabViewModel {
     private final BooleanProperty fulltextIndex = new SimpleBooleanProperty();
     private final StringProperty fileNamePatternProperty = new SimpleStringProperty();
     private final StringProperty fileDirectoryPatternProperty = new SimpleStringProperty();
+    private final BooleanProperty confirmLinkedFileDeleteProperty = new SimpleBooleanProperty();
+    private final BooleanProperty moveToTrashProperty = new SimpleBooleanProperty();
 
     private final Validator mainFileDirValidator;
 
@@ -53,21 +55,21 @@ public class LinkedFilesTabViewModel implements PreferenceTabViewModel {
 
         mainFileDirValidator = new FunctionBasedValidator<>(
                 mainFileDirectoryProperty,
-                input -> {
+                mainDirectoryPath -> {
+                    ValidationMessage error = ValidationMessage.error(
+                            Localization.lang("Main file directory '%0' not found.\nCheck the tab \"Linked files\".", mainDirectoryPath)
+                    );
                     try {
-                        Path path = Path.of(mainFileDirectoryProperty.getValue());
-                        return (Files.exists(path) && Files.isDirectory(path));
+                        Path path = Path.of(mainDirectoryPath);
+                        if (!(Files.exists(path) && Files.isDirectory(path))) {
+                            return error;
+                        }
                     } catch (InvalidPathException ex) {
-                        return false;
+                        return error;
                     }
-                },
-                ValidationMessage.error(String.format("%s > %s > %s %n %n %s",
-                        Localization.lang("File"),
-                        Localization.lang("External file links"),
-                        Localization.lang("Main file directory"),
-                        Localization.lang("Directory not found")
-                        )
-                )
+                    // main directory is valid
+                    return null;
+                }
         );
     }
 
@@ -80,6 +82,8 @@ public class LinkedFilesTabViewModel implements PreferenceTabViewModel {
         fulltextIndex.setValue(filePreferences.shouldFulltextIndexLinkedFiles());
         fileNamePatternProperty.setValue(filePreferences.getFileNamePattern());
         fileDirectoryPatternProperty.setValue(filePreferences.getFileDirectoryPattern());
+        confirmLinkedFileDeleteProperty.setValue(filePreferences.confirmDeleteLinkedFile());
+        moveToTrashProperty.setValue(filePreferences.moveToTrash());
 
         // Autolink preferences
         switch (autoLinkPreferences.getCitationKeyDependency()) {
@@ -98,7 +102,6 @@ public class LinkedFilesTabViewModel implements PreferenceTabViewModel {
         filePreferences.setStoreFilesRelativeToBibFile(useBibLocationAsPrimaryProperty.getValue());
         filePreferences.setFileNamePattern(fileNamePatternProperty.getValue());
         filePreferences.setFileDirectoryPattern(fileDirectoryPatternProperty.getValue());
-        filePreferences.setDownloadLinkedFiles(filePreferences.shouldDownloadLinkedFiles()); // set in ImportEntriesViewModel
         filePreferences.setFulltextIndexLinkedFiles(fulltextIndex.getValue());
 
         // Autolink preferences
@@ -111,6 +114,8 @@ public class LinkedFilesTabViewModel implements PreferenceTabViewModel {
         }
 
         autoLinkPreferences.setRegularExpression(autolinkRegexKeyProperty.getValue());
+        filePreferences.confirmDeleteLinkedFile(confirmLinkedFileDeleteProperty.getValue());
+        filePreferences.moveToTrash(moveToTrashProperty.getValue());
     }
 
     ValidationStatus mainFileDirValidationStatus() {
@@ -120,7 +125,7 @@ public class LinkedFilesTabViewModel implements PreferenceTabViewModel {
     @Override
     public boolean validateSettings() {
         ValidationStatus validationStatus = mainFileDirValidationStatus();
-        if (!validationStatus.isValid()) {
+        if (!validationStatus.isValid() && useMainFileDirectoryProperty().get()) {
             validationStatus.getHighestMessage().ifPresent(message ->
                     dialogService.showErrorDialogAndWait(message.getMessage()));
             return false;
@@ -178,6 +183,14 @@ public class LinkedFilesTabViewModel implements PreferenceTabViewModel {
 
     public BooleanProperty useMainFileDirectoryProperty() {
         return useMainFileDirectoryProperty;
+    }
+
+    public BooleanProperty confirmLinkedFileDeleteProperty() {
+        return this.confirmLinkedFileDeleteProperty;
+    }
+
+    public BooleanProperty moveToTrashProperty() {
+        return this.moveToTrashProperty;
     }
 }
 

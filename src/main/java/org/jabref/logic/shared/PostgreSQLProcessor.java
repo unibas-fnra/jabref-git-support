@@ -7,8 +7,8 @@ import java.sql.Statement;
 import java.util.List;
 import java.util.Map;
 
-import org.jabref.gui.JabRefExecutorService;
 import org.jabref.logic.shared.listener.PostgresSQLNotificationListener;
+import org.jabref.logic.util.HeadlessExecutorService;
 import org.jabref.model.entry.BibEntry;
 import org.jabref.model.metadata.MetaData;
 
@@ -21,8 +21,8 @@ public class PostgreSQLProcessor extends DBMSProcessor {
 
     private PostgresSQLNotificationListener listener;
 
-    private Integer VERSION_DB_STRUCT_DEFAULT = -1;
-    private Integer CURRENT_VERSION_DB_STRUCT = 1;
+    private int VERSION_DB_STRUCT_DEFAULT = -1;
+    private final int CURRENT_VERSION_DB_STRUCT = 1;
 
     public PostgreSQLProcessor(DatabaseConnection connection) {
         super(connection);
@@ -31,11 +31,11 @@ public class PostgreSQLProcessor extends DBMSProcessor {
     /**
      * Creates and sets up the needed tables and columns according to the database type.
      *
-     * @throws SQLException
+     * @throws SQLException in case of error
      */
     @Override
     public void setUp() throws SQLException {
-        
+
         if (CURRENT_VERSION_DB_STRUCT == 1 && checkTableAvailability("ENTRY", "FIELD", "METADATA")) {
             // checkTableAvailability does not distinguish if same table name exists in different schemas
             // VERSION_DB_STRUCT_DEFAULT must be forced
@@ -65,7 +65,8 @@ public class PostgreSQLProcessor extends DBMSProcessor {
 
         if (metadata.get(MetaData.VERSION_DB_STRUCT) != null) {
             try {
-                VERSION_DB_STRUCT_DEFAULT = Integer.valueOf(metadata.get(MetaData.VERSION_DB_STRUCT));
+                // replace semicolon so we can parse it
+                VERSION_DB_STRUCT_DEFAULT = Integer.parseInt(metadata.get(MetaData.VERSION_DB_STRUCT).replace(";", ""));
             } catch (Exception e) {
                 LOGGER.warn("[VERSION_DB_STRUCT_DEFAULT] not Integer!");
             }
@@ -84,7 +85,7 @@ public class PostgreSQLProcessor extends DBMSProcessor {
                 metadata = getSharedMetaData();
             }
 
-            metadata.put(MetaData.VERSION_DB_STRUCT, CURRENT_VERSION_DB_STRUCT.toString());
+            metadata.put(MetaData.VERSION_DB_STRUCT, String.valueOf(CURRENT_VERSION_DB_STRUCT));
             setSharedMetaData(metadata);
         }
     }
@@ -98,9 +99,7 @@ public class PostgreSQLProcessor extends DBMSProcessor {
                 .append(escape("TYPE"))
                 .append(") VALUES(?)");
         // Number of commas is bibEntries.size() - 1
-        for (int i = 0; i < bibEntries.size() - 1; i++) {
-            insertIntoEntryQuery.append(", (?)");
-        }
+        insertIntoEntryQuery.append(", (?)".repeat(Math.max(0, bibEntries.size() - 1)));
         try (PreparedStatement preparedEntryStatement = connection.prepareStatement(insertIntoEntryQuery.toString(),
                 Statement.RETURN_GENERATED_KEYS)) {
             for (int i = 0; i < bibEntries.size(); i++) {
@@ -116,11 +115,11 @@ public class PostgreSQLProcessor extends DBMSProcessor {
                     bibEntry.getSharedBibEntryData().setSharedID(generatedKeys.getInt(1));
                 }
                 if (generatedKeys.next()) {
-                    LOGGER.error("Error: Some shared IDs left unassigned");
+                    LOGGER.error("Some shared IDs left unassigned");
                 }
             }
         } catch (SQLException e) {
-            LOGGER.error("SQL Error: ", e);
+            LOGGER.error("SQL Error during entry insertion", e);
         }
     }
 
@@ -146,12 +145,12 @@ public class PostgreSQLProcessor extends DBMSProcessor {
         try {
             connection.createStatement().execute("LISTEN jabrefLiveUpdate");
             // Do not use `new PostgresSQLNotificationListener(...)` as the object has to exist continuously!
-            // Otherwise the listener is going to be deleted by GC.
+            // Otherwise, the listener is going to be deleted by Java's garbage collector.
             PGConnection pgConnection = connection.unwrap(PGConnection.class);
             listener = new PostgresSQLNotificationListener(dbmsSynchronizer, pgConnection);
-            JabRefExecutorService.INSTANCE.execute(listener);
+            HeadlessExecutorService.INSTANCE.execute(listener);
         } catch (SQLException e) {
-            LOGGER.error("SQL Error: ", e);
+            LOGGER.error("SQL Error during starting the notification listener", e);
         }
     }
 
@@ -161,7 +160,7 @@ public class PostgreSQLProcessor extends DBMSProcessor {
             listener.stop();
             connection.close();
         } catch (SQLException e) {
-            LOGGER.error("SQL Error: ", e);
+            LOGGER.error("SQL Error during stopping the notification listener", e);
         }
     }
 
@@ -170,7 +169,7 @@ public class PostgreSQLProcessor extends DBMSProcessor {
         try {
             connection.createStatement().execute("NOTIFY jabrefLiveUpdate, '" + PROCESSOR_ID + "';");
         } catch (SQLException e) {
-            LOGGER.error("SQL Error: ", e);
+            LOGGER.error("SQL Error during client notification", e);
         }
     }
 }

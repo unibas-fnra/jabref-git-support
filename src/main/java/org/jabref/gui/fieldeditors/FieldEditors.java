@@ -10,11 +10,22 @@ import org.jabref.gui.DialogService;
 import org.jabref.gui.autocompleter.ContentSelectorSuggestionProvider;
 import org.jabref.gui.autocompleter.SuggestionProvider;
 import org.jabref.gui.autocompleter.SuggestionProviders;
+import org.jabref.gui.fieldeditors.identifier.IdentifierEditor;
+import org.jabref.gui.fieldeditors.optioneditors.MonthEditorViewModel;
+import org.jabref.gui.fieldeditors.optioneditors.OptionEditor;
+import org.jabref.gui.fieldeditors.optioneditors.mapbased.CustomFieldEditorViewModel;
+import org.jabref.gui.fieldeditors.optioneditors.mapbased.EditorTypeEditorViewModel;
+import org.jabref.gui.fieldeditors.optioneditors.mapbased.GenderEditorViewModel;
+import org.jabref.gui.fieldeditors.optioneditors.mapbased.PaginationEditorViewModel;
+import org.jabref.gui.fieldeditors.optioneditors.mapbased.PatentTypeEditorViewModel;
+import org.jabref.gui.fieldeditors.optioneditors.mapbased.TypeEditorViewModel;
+import org.jabref.gui.fieldeditors.optioneditors.mapbased.YesNoEditorViewModel;
+import org.jabref.gui.undo.RedoAction;
+import org.jabref.gui.undo.UndoAction;
 import org.jabref.gui.util.TaskExecutor;
 import org.jabref.logic.integrity.FieldCheckers;
 import org.jabref.logic.journals.JournalAbbreviationRepository;
 import org.jabref.model.database.BibDatabaseContext;
-import org.jabref.model.entry.BibEntry;
 import org.jabref.model.entry.field.Field;
 import org.jabref.model.entry.field.FieldFactory;
 import org.jabref.model.entry.field.FieldProperty;
@@ -41,7 +52,9 @@ public class FieldEditors {
                                             final BibDatabaseContext databaseContext,
                                             final EntryType entryType,
                                             final SuggestionProviders suggestionProviders,
-                                            final UndoManager undoManager) {
+                                            final UndoManager undoManager,
+                                            final UndoAction undoAction,
+                                            final RedoAction redoAction) {
         final Set<FieldProperty> fieldProperties = field.getProperties();
 
         final SuggestionProvider<?> suggestionProvider = getSuggestionProvider(field, suggestionProviders, databaseContext.getMetaData());
@@ -52,51 +65,63 @@ public class FieldEditors {
                 journalAbbreviationRepository,
                 preferences.getEntryEditorPreferences().shouldAllowIntegerEditionBibtex());
 
-        boolean isMultiLine = FieldFactory.isMultiLineField(field, preferences.getFieldContentParserPreferences().getNonWrappableFields());
+        boolean isMultiLine = FieldFactory.isMultiLineField(field, preferences.getFieldPreferences().getNonWrappableFields());
 
         if (preferences.getTimestampPreferences().getTimestampField().equals(field)) {
-            return new DateEditor(field, DateTimeFormatter.ofPattern(preferences.getTimestampPreferences().getTimestampFormat()), suggestionProvider, fieldCheckers, preferences);
+            return new DateEditor(field, DateTimeFormatter.ofPattern(preferences.getTimestampPreferences().getTimestampFormat()), suggestionProvider, fieldCheckers, undoAction, redoAction);
         } else if (fieldProperties.contains(FieldProperty.DATE)) {
-            return new DateEditor(field, DateTimeFormatter.ofPattern("[uuuu][-MM][-dd]"), suggestionProvider, fieldCheckers, preferences);
+            return new DateEditor(field, DateTimeFormatter.ofPattern("[uuuu][-MM][-dd]"), suggestionProvider, fieldCheckers, undoAction, redoAction);
         } else if (fieldProperties.contains(FieldProperty.EXTERNAL)) {
-            return new UrlEditor(field, dialogService, suggestionProvider, fieldCheckers, preferences);
+            return new UrlEditor(field, suggestionProvider, fieldCheckers, undoAction, redoAction);
         } else if (fieldProperties.contains(FieldProperty.JOURNAL_NAME)) {
-            return new JournalEditor(field, journalAbbreviationRepository, preferences, suggestionProvider, fieldCheckers);
-        } else if (fieldProperties.contains(FieldProperty.DOI) || fieldProperties.contains(FieldProperty.EPRINT) || fieldProperties.contains(FieldProperty.ISBN)) {
-            return new IdentifierEditor(field, taskExecutor, dialogService, suggestionProvider, fieldCheckers, preferences);
+            return new JournalEditor(field, suggestionProvider, fieldCheckers, undoAction, redoAction);
+        } else if (fieldProperties.contains(FieldProperty.IDENTIFIER) && field != StandardField.PMID || field == StandardField.ISBN) {
+            // Identifier editor does not support PMID, therefore excluded at the condition above
+            return new IdentifierEditor(field, suggestionProvider, fieldCheckers);
+        } else if (field == StandardField.ISSN) {
+            return new ISSNEditor(field, suggestionProvider, fieldCheckers, undoAction, redoAction);
         } else if (field == StandardField.OWNER) {
-            return new OwnerEditor(field, preferences, suggestionProvider, fieldCheckers);
-        } else if (fieldProperties.contains(FieldProperty.FILE_EDITOR)) {
-            return new LinkedFilesEditor(field, dialogService, databaseContext, taskExecutor, suggestionProvider, fieldCheckers, preferences);
+            return new OwnerEditor(field, suggestionProvider, fieldCheckers, undoAction, redoAction);
+        } else if (field == StandardField.GROUPS) {
+            return new GroupEditor(field, suggestionProvider, fieldCheckers, preferences, isMultiLine, undoManager, undoAction, redoAction);
+        } else if (field == StandardField.FILE) {
+            return new LinkedFilesEditor(field, databaseContext, suggestionProvider, fieldCheckers);
         } else if (fieldProperties.contains(FieldProperty.YES_NO)) {
-            return new OptionEditor<>(new YesNoEditorViewModel(field, suggestionProvider, fieldCheckers));
+            return new OptionEditor<>(new YesNoEditorViewModel(field, suggestionProvider, fieldCheckers, undoManager));
         } else if (fieldProperties.contains(FieldProperty.MONTH)) {
-            return new OptionEditor<>(new MonthEditorViewModel(field, suggestionProvider, databaseContext.getMode(), fieldCheckers));
-        } else if (fieldProperties.contains(FieldProperty.GENDER)) {
-            return new OptionEditor<>(new GenderEditorViewModel(field, suggestionProvider, fieldCheckers));
+            return new OptionEditor<>(new MonthEditorViewModel(field, suggestionProvider, databaseContext.getMode(), fieldCheckers, undoManager));
+        } else if (field == StandardField.GENDER) {
+            return new OptionEditor<>(new GenderEditorViewModel(field, suggestionProvider, fieldCheckers, undoManager));
         } else if (fieldProperties.contains(FieldProperty.EDITOR_TYPE)) {
-            return new OptionEditor<>(new EditorTypeEditorViewModel(field, suggestionProvider, fieldCheckers));
+            return new OptionEditor<>(new EditorTypeEditorViewModel(field, suggestionProvider, fieldCheckers, undoManager));
         } else if (fieldProperties.contains(FieldProperty.PAGINATION)) {
-            return new OptionEditor<>(new PaginationEditorViewModel(field, suggestionProvider, fieldCheckers));
-        } else if (fieldProperties.contains(FieldProperty.TYPE)) {
+            return new OptionEditor<>(new PaginationEditorViewModel(field, suggestionProvider, fieldCheckers, undoManager));
+        } else if (field == StandardField.TYPE) {
             if (entryType.equals(IEEETranEntryType.Patent)) {
-                return new OptionEditor<>(new PatentTypeEditorViewModel(field, suggestionProvider, fieldCheckers));
+                return new OptionEditor<>(new PatentTypeEditorViewModel(field, suggestionProvider, fieldCheckers, undoManager));
             } else {
-                return new OptionEditor<>(new TypeEditorViewModel(field, suggestionProvider, fieldCheckers));
+                return new OptionEditor<>(new TypeEditorViewModel(field, suggestionProvider, fieldCheckers, undoManager));
             }
-        } else if (fieldProperties.contains(FieldProperty.SINGLE_ENTRY_LINK)) {
-            return new LinkedEntriesEditor(field, databaseContext, (SuggestionProvider<BibEntry>) suggestionProvider, fieldCheckers);
-        } else if (fieldProperties.contains(FieldProperty.MULTIPLE_ENTRY_LINK)) {
-            return new LinkedEntriesEditor(field, databaseContext, (SuggestionProvider<BibEntry>) suggestionProvider, fieldCheckers);
+        } else if (fieldProperties.contains(FieldProperty.SINGLE_ENTRY_LINK) || fieldProperties.contains(FieldProperty.MULTIPLE_ENTRY_LINK)) {
+            return new LinkedEntriesEditor(field, databaseContext, suggestionProvider, fieldCheckers);
         } else if (fieldProperties.contains(FieldProperty.PERSON_NAMES)) {
-            return new PersonsEditor(field, suggestionProvider, preferences, fieldCheckers, isMultiLine);
-        } else if (StandardField.KEYWORDS.equals(field)) {
-            return new KeywordsEditor(field, suggestionProvider, fieldCheckers, preferences);
+            return new PersonsEditor(field, suggestionProvider, fieldCheckers, isMultiLine, undoManager, undoAction, redoAction);
+        } else if (StandardField.KEYWORDS == field) {
+            return new KeywordsEditor(field, suggestionProvider, fieldCheckers);
         } else if (field == InternalField.KEY_FIELD) {
-            return new CitationKeyEditor(field, preferences, suggestionProvider, fieldCheckers, databaseContext, undoManager, dialogService);
+            return new CitationKeyEditor(field, suggestionProvider, fieldCheckers, databaseContext, undoAction, redoAction);
+        } else if (fieldProperties.contains(FieldProperty.MARKDOWN)) {
+            return new MarkdownEditor(field, suggestionProvider, fieldCheckers, preferences, undoManager, undoAction, redoAction);
         } else {
-            // default
-            return new SimpleEditor(field, suggestionProvider, fieldCheckers, preferences, isMultiLine);
+            // There was no specific editor found
+
+            // Check whether there are selectors defined for the field at hand
+            List<String> selectorValues = databaseContext.getMetaData().getContentSelectorValuesForField(field);
+            if (!isMultiLine && !selectorValues.isEmpty()) {
+                return new OptionEditor<>(new CustomFieldEditorViewModel(field, suggestionProvider, fieldCheckers, undoManager, selectorValues));
+            } else {
+                return new SimpleEditor(field, suggestionProvider, fieldCheckers, preferences, isMultiLine, undoManager, undoAction, redoAction);
+            }
         }
     }
 

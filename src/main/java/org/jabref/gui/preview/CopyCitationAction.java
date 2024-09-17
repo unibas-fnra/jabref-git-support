@@ -10,7 +10,6 @@ import javafx.scene.input.ClipboardContent;
 
 import org.jabref.gui.ClipBoardManager;
 import org.jabref.gui.DialogService;
-import org.jabref.gui.Globals;
 import org.jabref.gui.StateManager;
 import org.jabref.gui.actions.ActionHelper;
 import org.jabref.gui.actions.SimpleCommand;
@@ -19,16 +18,18 @@ import org.jabref.gui.util.TaskExecutor;
 import org.jabref.logic.citationstyle.CitationStyleGenerator;
 import org.jabref.logic.citationstyle.CitationStyleOutputFormat;
 import org.jabref.logic.citationstyle.CitationStylePreviewLayout;
+import org.jabref.logic.journals.JournalAbbreviationRepository;
 import org.jabref.logic.l10n.Localization;
 import org.jabref.logic.layout.Layout;
-import org.jabref.logic.layout.LayoutFormatterPreferences;
 import org.jabref.logic.layout.LayoutHelper;
 import org.jabref.logic.layout.TextBasedPreviewLayout;
 import org.jabref.logic.preview.PreviewLayout;
 import org.jabref.logic.util.OS;
 import org.jabref.model.entry.BibEntry;
-import org.jabref.preferences.PreviewPreferences;
+import org.jabref.model.entry.BibEntryTypesManager;
+import org.jabref.preferences.PreferencesService;
 
+import com.airhacks.afterburner.injection.Injector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,29 +41,30 @@ public class CopyCitationAction extends SimpleCommand {
     private static final Logger LOGGER = LoggerFactory.getLogger(CopyCitationAction.class);
 
     private final List<BibEntry> selectedEntries;
-    private final PreviewLayout previewLayout;
-    private final TextBasedPreviewLayout customPreviewLayout;
     private final CitationStyleOutputFormat outputFormat;
 
     private final StateManager stateManager;
     private final DialogService dialogService;
     private final ClipBoardManager clipBoardManager;
     private final TaskExecutor taskExecutor;
+    private final PreferencesService preferencesService;
+    private final JournalAbbreviationRepository abbreviationRepository;
 
     public CopyCitationAction(CitationStyleOutputFormat outputFormat,
                               DialogService dialogService,
                               StateManager stateManager,
                               ClipBoardManager clipBoardManager,
                               TaskExecutor taskExecutor,
-                              PreviewPreferences previewPreferences) {
+                              PreferencesService preferencesService,
+                              JournalAbbreviationRepository abbreviationRepository) {
         this.outputFormat = outputFormat;
         this.dialogService = dialogService;
         this.stateManager = stateManager;
         this.selectedEntries = stateManager.getSelectedEntries();
         this.clipBoardManager = clipBoardManager;
         this.taskExecutor = taskExecutor;
-        this.previewLayout = previewPreferences.getSelectedPreviewLayout();
-        this.customPreviewLayout = previewPreferences.getCustomPreviewLayout();
+        this.preferencesService = preferencesService;
+        this.abbreviationRepository = abbreviationRepository;
 
         this.executable.bind(ActionHelper.needsEntriesSelected(stateManager));
     }
@@ -79,13 +81,19 @@ public class CopyCitationAction extends SimpleCommand {
         // This worker stored the style as filename. The CSLAdapter and the CitationStyleCache store the source of the
         // style. Therefore, we extract the style source from the file.
         String styleSource = null;
+        PreviewLayout previewLayout = preferencesService.getPreviewPreferences().getSelectedPreviewLayout();
 
         if (previewLayout instanceof CitationStylePreviewLayout citationStyleLayout) {
-            styleSource = citationStyleLayout.getSource();
+            styleSource = citationStyleLayout.getText();
         }
 
         if (styleSource != null) {
-            return CitationStyleGenerator.generateCitations(selectedEntries, styleSource, outputFormat, stateManager.getActiveDatabase().get(), Globals.entryTypesManager);
+            return CitationStyleGenerator.generateCitations(
+                    selectedEntries,
+                    styleSource,
+                    outputFormat,
+                    stateManager.getActiveDatabase().get(),
+                    Injector.instantiateModelOrService(BibEntryTypesManager.class));
         } else {
             return generateTextBasedPreviewLayoutCitations();
         }
@@ -96,9 +104,10 @@ public class CopyCitationAction extends SimpleCommand {
             return Collections.emptyList();
         }
 
+        TextBasedPreviewLayout customPreviewLayout = preferencesService.getPreviewPreferences().getCustomPreviewLayout();
         StringReader customLayoutReader = new StringReader(customPreviewLayout.getText().replace("__NEWLINE__", "\n"));
-        LayoutFormatterPreferences layoutFormatterPreferences = Globals.prefs.getLayoutFormatterPreferences(Globals.journalAbbreviationRepository);
-        Layout layout = new LayoutHelper(customLayoutReader, layoutFormatterPreferences).getLayoutFromText();
+        Layout layout = new LayoutHelper(customLayoutReader, preferencesService.getLayoutFormatterPreferences(), abbreviationRepository)
+                .getLayoutFromText();
 
         List<String> citations = new ArrayList<>(selectedEntries.size());
         for (BibEntry entry : selectedEntries) {
@@ -149,6 +158,8 @@ public class CopyCitationAction extends SimpleCommand {
     }
 
     private void setClipBoardContent(List<String> citations) {
+        PreviewLayout previewLayout = preferencesService.getPreviewPreferences().getSelectedPreviewLayout();
+
         // if it's not a citation style take care of the preview
         if (!(previewLayout instanceof CitationStylePreviewLayout)) {
             clipBoardManager.setContent(processPreview(citations));

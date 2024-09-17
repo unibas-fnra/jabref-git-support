@@ -8,10 +8,11 @@ import java.util.List;
 import java.util.Random;
 import java.util.stream.Collectors;
 
-import org.jabref.gui.Globals;
+import org.jabref.logic.bibtex.FieldPreferences;
+import org.jabref.logic.citationkeypattern.CitationKeyPatternPreferences;
 import org.jabref.logic.exporter.BibWriter;
 import org.jabref.logic.exporter.BibtexDatabaseWriter;
-import org.jabref.logic.exporter.SavePreferences;
+import org.jabref.logic.exporter.SelfContainedSaveConfiguration;
 import org.jabref.logic.formatter.bibtexfields.HtmlToLatexFormatter;
 import org.jabref.logic.importer.ParserResult;
 import org.jabref.logic.importer.fileformat.BibtexParser;
@@ -32,10 +33,10 @@ import org.jabref.model.groups.KeywordGroup;
 import org.jabref.model.groups.WordKeywordGroup;
 import org.jabref.model.metadata.MetaData;
 import org.jabref.model.search.rules.SearchRules.SearchFlags;
-import org.jabref.model.util.DummyFileUpdateMonitor;
-import org.jabref.preferences.GeneralPreferences;
 import org.jabref.preferences.JabRefPreferences;
+import org.jabref.preferences.PreferencesService;
 
+import com.airhacks.afterburner.injection.Injector;
 import org.openjdk.jmh.Main;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Scope;
@@ -55,7 +56,7 @@ public class Benchmarks {
 
     @Setup
     public void init() throws Exception {
-        Globals.prefs = JabRefPreferences.getInstance();
+        Injector.setModelOrService(PreferencesService.class, JabRefPreferences.getInstance());
 
         Random randomizer = new Random();
         for (int i = 0; i < 1000; i++) {
@@ -80,14 +81,20 @@ public class Benchmarks {
     private StringWriter getOutputWriter() throws IOException {
         StringWriter outputWriter = new StringWriter();
         BibWriter bibWriter = new BibWriter(outputWriter, OS.NEWLINE);
-        BibtexDatabaseWriter databaseWriter = new BibtexDatabaseWriter(bibWriter, mock(GeneralPreferences.class), mock(SavePreferences.class), new BibEntryTypesManager());
+        BibtexDatabaseWriter databaseWriter = new BibtexDatabaseWriter(
+                bibWriter,
+                mock(SelfContainedSaveConfiguration.class),
+                mock(FieldPreferences.class),
+                mock(CitationKeyPatternPreferences.class),
+                new BibEntryTypesManager());
         databaseWriter.savePartOfDatabase(new BibDatabaseContext(database, new MetaData()), database.getEntries());
         return outputWriter;
     }
 
     @Benchmark
     public ParserResult parse() throws IOException {
-        BibtexParser parser = new BibtexParser(Globals.prefs.getImportFormatPreferences(), new DummyFileUpdateMonitor());
+        PreferencesService preferencesService = Injector.instantiateModelOrService(PreferencesService.class);
+        BibtexParser parser = new BibtexParser(preferencesService.getImportFormatPreferences());
         return parser.parse(new StringReader(bibtexString));
     }
 

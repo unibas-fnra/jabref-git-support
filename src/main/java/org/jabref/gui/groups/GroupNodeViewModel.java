@@ -23,18 +23,26 @@ import org.jabref.gui.icon.IconTheme;
 import org.jabref.gui.icon.JabRefIcon;
 import org.jabref.gui.util.BackgroundTask;
 import org.jabref.gui.util.CustomLocalDragboard;
-import org.jabref.gui.util.DefaultTaskExecutor;
 import org.jabref.gui.util.DroppingMouseLocation;
 import org.jabref.gui.util.TaskExecutor;
+import org.jabref.gui.util.UiTaskExecutor;
 import org.jabref.logic.groups.DefaultGroupsFactory;
 import org.jabref.logic.layout.format.LatexToUnicodeFormatter;
 import org.jabref.model.FieldChange;
 import org.jabref.model.database.BibDatabaseContext;
 import org.jabref.model.entry.BibEntry;
 import org.jabref.model.groups.AbstractGroup;
+import org.jabref.model.groups.AllEntriesGroup;
 import org.jabref.model.groups.AutomaticGroup;
+import org.jabref.model.groups.AutomaticKeywordGroup;
+import org.jabref.model.groups.AutomaticPersonsGroup;
+import org.jabref.model.groups.ExplicitGroup;
 import org.jabref.model.groups.GroupEntryChanger;
 import org.jabref.model.groups.GroupTreeNode;
+import org.jabref.model.groups.KeywordGroup;
+import org.jabref.model.groups.LastNameGroup;
+import org.jabref.model.groups.RegexKeywordGroup;
+import org.jabref.model.groups.SearchGroup;
 import org.jabref.model.groups.TexGroup;
 import org.jabref.model.strings.StringUtil;
 import org.jabref.preferences.PreferencesService;
@@ -59,7 +67,7 @@ public class GroupNodeViewModel {
     private final CustomLocalDragboard localDragBoard;
     private final ObservableList<BibEntry> entriesList;
     private final PreferencesService preferencesService;
-    private final InvalidationListener onInvalidatedGroup = (listener) -> refreshGroup();
+    private final InvalidationListener onInvalidatedGroup = listener -> refreshGroup();
 
     public GroupNodeViewModel(BibDatabaseContext databaseContext, StateManager stateManager, TaskExecutor taskExecutor, GroupTreeNode groupNode, CustomLocalDragboard localDragBoard, PreferencesService preferencesService) {
         this.databaseContext = Objects.requireNonNull(databaseContext);
@@ -251,10 +259,10 @@ public class GroupNodeViewModel {
     }
 
     private void refreshGroup() {
-        DefaultTaskExecutor.runInJavaFXThread(() -> {
+        UiTaskExecutor.runInJavaFXThread(() -> {
             updateMatchedEntries(); // Update the entries matched by the group
             // "Re-add" to the selected groups if it were selected, this refreshes the entries the user views
-            ObservableList<GroupTreeNode> selectedGroups = this.stateManager.getSelectedGroup(this.databaseContext);
+            ObservableList<GroupTreeNode> selectedGroups = this.stateManager.getSelectedGroups(this.databaseContext);
             if (selectedGroups.remove(this.groupNode)) {
                 selectedGroups.add(this.groupNode);
             }
@@ -367,5 +375,136 @@ public class GroupNodeViewModel {
 
     private int getPositionInParent() {
         return groupNode.getPositionInParent();
+    }
+
+    public boolean hasSubgroups() {
+        return !getChildren().isEmpty();
+    }
+
+    public boolean canAddEntriesIn() {
+        AbstractGroup group = groupNode.getGroup();
+        if (group instanceof AllEntriesGroup) {
+            return false;
+        } else if (group instanceof ExplicitGroup) {
+            return true;
+        } else if (group instanceof LastNameGroup || group instanceof RegexKeywordGroup) {
+            return groupNode.getParent()
+                            .map(parent -> parent.getGroup())
+                            .map(groupParent -> groupParent instanceof AutomaticKeywordGroup || groupParent instanceof AutomaticPersonsGroup)
+                            .orElse(false);
+        } else if (group instanceof KeywordGroup) {
+            // also covers WordKeywordGroup
+            return true;
+        } else if (group instanceof SearchGroup) {
+            return false;
+        } else if (group instanceof AutomaticKeywordGroup) {
+            return false;
+        } else if (group instanceof AutomaticPersonsGroup) {
+            return false;
+        } else if (group instanceof TexGroup) {
+            return false;
+        } else {
+            throw new UnsupportedOperationException("canAddEntriesIn method not yet implemented in group: " + group.getClass().getName());
+        }
+    }
+
+    public boolean canBeDragged() {
+        AbstractGroup group = groupNode.getGroup();
+        if (group instanceof AllEntriesGroup) {
+            return false;
+        } else if (group instanceof ExplicitGroup) {
+            return true;
+        } else if (group instanceof KeywordGroup) {
+            // KeywordGroup is parent of LastNameGroup, RegexKeywordGroup and WordKeywordGroup
+            return groupNode.getParent()
+                            .map(parent -> parent.getGroup())
+                            .map(groupParent -> !(groupParent instanceof AutomaticKeywordGroup || groupParent instanceof AutomaticPersonsGroup))
+                            .orElse(false);
+        } else if (group instanceof SearchGroup) {
+            return true;
+        } else if (group instanceof AutomaticKeywordGroup) {
+            return true;
+        } else if (group instanceof AutomaticPersonsGroup) {
+            return true;
+        } else if (group instanceof TexGroup) {
+            return true;
+        } else {
+            throw new UnsupportedOperationException("canBeDragged method not yet implemented in group: " + group.getClass().getName());
+        }
+    }
+
+    public boolean canAddGroupsIn() {
+        AbstractGroup group = groupNode.getGroup();
+        if (group instanceof AllEntriesGroup) {
+            return true;
+        } else if (group instanceof ExplicitGroup) {
+            return true;
+        } else if (group instanceof KeywordGroup) {
+            // KeywordGroup is parent of LastNameGroup, RegexKeywordGroup and WordKeywordGroup
+            return groupNode.getParent()
+                            .map(parent -> parent.getGroup())
+                            .map(groupParent -> !(groupParent instanceof AutomaticKeywordGroup || groupParent instanceof AutomaticPersonsGroup))
+                            .orElse(false);
+        } else if (group instanceof SearchGroup) {
+            return true;
+        } else if (group instanceof AutomaticKeywordGroup) {
+            return false;
+        } else if (group instanceof AutomaticPersonsGroup) {
+            return false;
+        } else if (group instanceof TexGroup) {
+            return true;
+        } else {
+            throw new UnsupportedOperationException("canAddGroupsIn method not yet implemented in group: " + group.getClass().getName());
+        }
+    }
+
+    public boolean canRemove() {
+        AbstractGroup group = groupNode.getGroup();
+        if (group instanceof AllEntriesGroup) {
+            return false;
+        } else if (group instanceof ExplicitGroup) {
+            return true;
+        } else if (group instanceof KeywordGroup) {
+            // KeywordGroup is parent of LastNameGroup, RegexKeywordGroup and WordKeywordGroup
+            return groupNode.getParent()
+                            .map(parent -> parent.getGroup())
+                            .map(groupParent -> !(groupParent instanceof AutomaticKeywordGroup || groupParent instanceof AutomaticPersonsGroup))
+                            .orElse(false);
+        } else if (group instanceof SearchGroup) {
+            return true;
+        } else if (group instanceof AutomaticKeywordGroup) {
+            return true;
+        } else if (group instanceof AutomaticPersonsGroup) {
+            return true;
+        } else if (group instanceof TexGroup) {
+            return true;
+        } else {
+            throw new UnsupportedOperationException("canRemove method not yet implemented in group: " + group.getClass().getName());
+        }
+    }
+
+    public boolean isEditable() {
+        AbstractGroup group = groupNode.getGroup();
+        if (group instanceof AllEntriesGroup) {
+            return false;
+        } else if (group instanceof ExplicitGroup) {
+            return true;
+        } else if (group instanceof KeywordGroup) {
+            // KeywordGroup is parent of LastNameGroup, RegexKeywordGroup and WordKeywordGroup
+            return groupNode.getParent()
+                            .map(parent -> parent.getGroup())
+                            .map(groupParent -> !(groupParent instanceof AutomaticKeywordGroup || groupParent instanceof AutomaticPersonsGroup))
+                            .orElse(false);
+        } else if (group instanceof SearchGroup) {
+            return true;
+        } else if (group instanceof AutomaticKeywordGroup) {
+            return true;
+        } else if (group instanceof AutomaticPersonsGroup) {
+            return true;
+        } else if (group instanceof TexGroup) {
+            return true;
+        } else {
+            throw new UnsupportedOperationException("isEditable method not yet implemented in group: " + group.getClass().getName());
+        }
     }
 }

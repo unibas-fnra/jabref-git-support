@@ -12,14 +12,17 @@ import javafx.print.PrinterJob;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ChoiceDialog;
+import javafx.scene.control.Dialog;
 import javafx.scene.control.DialogPane;
 import javafx.scene.control.TextInputDialog;
+import javafx.util.StringConverter;
 
 import org.jabref.gui.util.BaseDialog;
 import org.jabref.gui.util.DirectoryDialogConfiguration;
 import org.jabref.gui.util.FileDialogConfiguration;
 import org.jabref.logic.l10n.Localization;
 
+import org.controlsfx.control.textfield.CustomPasswordField;
 import org.controlsfx.dialog.ProgressDialog;
 
 /**
@@ -39,6 +42,12 @@ public interface DialogService {
      */
     default <T> Optional<T> showChoiceDialogAndWait(String title, String content, String okButtonLabel, Collection<T> choices) {
         return showChoiceDialogAndWait(title, content, okButtonLabel, null, choices);
+    }
+
+    <T> Optional<T> showEditableChoiceDialogAndWait(String title, String content, String okButtonLabel, T defaultChoice, Collection<T> choices, StringConverter<T> converter);
+
+    default <T> Optional<T> showEditableChoiceDialogAndWait(String title, String content, String okButtonLabel, Collection<T> choices, StringConverter<T> converter) {
+        return showEditableChoiceDialogAndWait(title, content, okButtonLabel, null, choices, converter);
     }
 
     /**
@@ -162,6 +171,14 @@ public interface DialogService {
                                                     String optOutMessage, Consumer<Boolean> optOutAction);
 
     /**
+     * This will create and display new {@link CustomPasswordField} that doesn't show the text, and two buttons
+     * one cancel and one ok.
+     *
+     * @return the entered password if pressed "OK", null otherwise
+     */
+    Optional<String> showPasswordDialogAndWait(String title, String header, String content);
+
+    /**
      * Shows a custom dialog without returning any results.
      *
      * @param dialog dialog to show
@@ -192,16 +209,28 @@ public interface DialogService {
      * @param dialog dialog to show
      * @param <R>    type of result
      */
-    <R> Optional<R> showCustomDialogAndWait(javafx.scene.control.Dialog<R> dialog);
+    <R> Optional<R> showCustomDialogAndWait(Dialog<R> dialog);
 
     /**
-     * Constructs and shows a canceable {@link ProgressDialog}. Clicking cancel will cancel the underlying service and close the dialog
+     * Constructs and shows a cancelable {@link ProgressDialog}.
+     * Clicking cancel will cancel the underlying service and close the dialog
      *
      * @param title   title of the dialog
      * @param content message to show above the progress bar
      * @param task    The {@link Task} which executes the work and for which to show the dialog
      */
     <V> void showProgressDialog(String title, String content, Task<V> task);
+
+    /**
+     * Constructs and shows a cancelable {@link ProgressDialog}.
+     * Clicking cancel will cancel the underlying service and close the dialog,
+     * otherwise will wait for the task to finish.
+     *
+     * @param title   title of the dialog
+     * @param content message to show above the progress bar
+     * @param task    The {@link Task} which executes the work and for which to show the dialog
+     */
+    <V> void showProgressDialogAndWait(String title, String content, Task<V> task);
 
     /**
      * Constructs and shows a dialog showing the progress of running background tasks.

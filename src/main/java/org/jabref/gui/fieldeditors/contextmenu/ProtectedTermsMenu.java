@@ -8,7 +8,6 @@ import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.TextInputControl;
 
-import org.jabref.gui.Globals;
 import org.jabref.gui.actions.Action;
 import org.jabref.gui.actions.ActionFactory;
 import org.jabref.gui.actions.SimpleCommand;
@@ -16,14 +15,18 @@ import org.jabref.gui.icon.IconTheme;
 import org.jabref.gui.icon.JabRefIcon;
 import org.jabref.logic.cleanup.Formatter;
 import org.jabref.logic.formatter.casechanger.ProtectTermsFormatter;
+import org.jabref.logic.formatter.casechanger.UnprotectTermsFormatter;
 import org.jabref.logic.l10n.Localization;
 import org.jabref.logic.protectedterms.ProtectedTermsList;
+import org.jabref.logic.protectedterms.ProtectedTermsLoader;
+
+import com.airhacks.afterburner.injection.Injector;
 
 class ProtectedTermsMenu extends Menu {
 
-    private static final Formatter FORMATTER = new ProtectTermsFormatter(Globals.protectedTermsLoader);
+    private static Formatter FORMATTER;
     private final TextInputControl textInputControl;
-    private final ActionFactory factory = new ActionFactory(Globals.getKeyPrefs());
+    private final ActionFactory factory = new ActionFactory();
 
     private final Action protectSelectionActionInformation = new Action() {
         @Override
@@ -42,6 +45,18 @@ class ProtectedTermsMenu extends Menu {
         }
     };
 
+    private final Action unprotectSelectionActionInformation = new Action() {
+        @Override
+        public String getText() {
+            return Localization.lang("Unprotect selection");
+        }
+
+        @Override
+        public String getDescription() {
+            return Localization.lang("Remove all {} in selected text");
+        }
+    };
+
     private class ProtectSelectionAction extends SimpleCommand {
         ProtectSelectionAction() {
             this.executable.bind(textInputControl.selectedTextProperty().isNotEmpty());
@@ -50,7 +65,30 @@ class ProtectedTermsMenu extends Menu {
         @Override
         public void execute() {
             String selectedText = textInputControl.getSelectedText();
-            textInputControl.replaceSelection("{" + selectedText + "}");
+            String firstStr = "{";
+            String lastStr = "}";
+            // If the selected text contains spaces at the beginning and end, then add spaces before or after the brackets
+            if (selectedText.startsWith(" ")) {
+                firstStr = " {";
+            }
+            if (selectedText.endsWith(" ")) {
+                lastStr = "} ";
+            }
+            textInputControl.replaceSelection(firstStr + selectedText.strip() + lastStr);
+        }
+    }
+
+    private class UnprotectSelectionAction extends SimpleCommand {
+
+        public UnprotectSelectionAction() {
+            this.executable.bind(textInputControl.selectedTextProperty().isNotEmpty());
+        }
+
+        @Override
+        public void execute() {
+            String selectedText = textInputControl.getSelectedText();
+            String formattedString = new UnprotectTermsFormatter().format(selectedText);
+            textInputControl.replaceSelection(formattedString);
         }
     }
 
@@ -72,32 +110,51 @@ class ProtectedTermsMenu extends Menu {
             Objects.requireNonNull(list);
 
             this.list = list;
-            this.executable.bind(textInputControl.selectedTextProperty().isNotEmpty());
+            this.executable.bind(textInputControl.focusedProperty());
         }
 
         @Override
         public void execute() {
-            list.addProtectedTerm(textInputControl.getSelectedText());
+            // If no selected term, then add the word after or at the cursor
+            if (textInputControl.getSelectedText().isEmpty()) {
+                int beginIdx = textInputControl.getCaretPosition();
+                int endIdx = textInputControl.getCaretPosition();
+                String text = textInputControl.getText();
+                // While the beginIdx > 0 and the previous char is not a space
+                while (beginIdx > 0 && text.charAt(beginIdx - 1) != ' ') {
+                    --beginIdx;
+                }
+                // While the endIdx < length and the current char is not a space
+                while (endIdx < text.length() && text.charAt(endIdx) != ' ') {
+                    ++endIdx;
+                }
+                list.addProtectedTerm(text.substring(beginIdx, endIdx));
+            } else {
+                // Remove leading and trailing whitespaces
+                list.addProtectedTerm(textInputControl.getSelectedText().strip());
+            }
         }
     }
 
     public ProtectedTermsMenu(final TextInputControl textInputControl) {
         super(Localization.lang("Protect terms"));
         this.textInputControl = textInputControl;
+        FORMATTER = new ProtectTermsFormatter(Injector.instantiateModelOrService(ProtectedTermsLoader.class));
 
         getItems().addAll(factory.createMenuItem(protectSelectionActionInformation, new ProtectSelectionAction()),
                 getExternalFilesMenu(),
                 new SeparatorMenuItem(),
-                factory.createMenuItem(() -> Localization.lang("Format field"), new FormatFieldAction()));
+                factory.createMenuItem(() -> Localization.lang("Format field"), new FormatFieldAction()),
+                factory.createMenuItem(unprotectSelectionActionInformation, new UnprotectSelectionAction()));
     }
 
     private Menu getExternalFilesMenu() {
         Menu protectedTermsMenu = factory.createSubMenu(() -> Localization.lang("Add selected text to list"));
-
-        Globals.protectedTermsLoader.getProtectedTermsLists().stream()
-                                    .filter(list -> !list.isInternalList())
-                                    .forEach(list -> protectedTermsMenu.getItems().add(
-                                            factory.createMenuItem(list::getDescription, new AddToProtectedTermsAction(list))));
+        ProtectedTermsLoader loader = Injector.instantiateModelOrService(ProtectedTermsLoader.class);
+        loader.getProtectedTermsLists().stream()
+              .filter(list -> !list.isInternalList())
+              .forEach(list -> protectedTermsMenu.getItems().add(
+                      factory.createMenuItem(list::getDescription, new AddToProtectedTermsAction(list))));
 
         if (protectedTermsMenu.getItems().isEmpty()) {
             MenuItem emptyItem = new MenuItem(Localization.lang("No list enabled"));

@@ -14,7 +14,6 @@ import java.util.TreeSet;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import org.jabref.logic.TypedBibEntry;
 import org.jabref.logic.exporter.BibWriter;
 import org.jabref.logic.util.OS;
 import org.jabref.model.database.BibDatabaseMode;
@@ -24,13 +23,15 @@ import org.jabref.model.entry.BibEntryTypesManager;
 import org.jabref.model.entry.field.BibField;
 import org.jabref.model.entry.field.Field;
 import org.jabref.model.entry.field.InternalField;
+import org.jabref.model.entry.field.OrFields;
 import org.jabref.model.strings.StringUtil;
 
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class BibEntryWriter {
 
-    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(BibEntryWriter.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(BibEntryWriter.class);
 
     private final BibEntryTypesManager entryTypesManager;
     private final FieldWriter fieldWriter;
@@ -105,35 +106,33 @@ public class BibEntryWriter {
             List<Field> requiredFields = type.get()
                                              .getRequiredFields()
                                              .stream()
+                                             .map(OrFields::getFields)
                                              .flatMap(Collection::stream)
                                              .sorted(Comparator.comparing(Field::getName))
-                                             .collect(Collectors.toList());
-
+                                             .toList();
             for (Field field : requiredFields) {
                 writeField(entry, out, field, indent);
             }
+            written.addAll(requiredFields);
 
             // Then optional fields
             List<Field> optionalFields = type.get()
                                              .getOptionalFields()
                                              .stream()
-                                             .map(BibField::getField)
+                                             .map(BibField::field)
                                              .sorted(Comparator.comparing(Field::getName))
-                                             .collect(Collectors.toList());
-
+                                             .toList();
             for (Field field : optionalFields) {
                 writeField(entry, out, field, indent);
             }
-
-            written.addAll(requiredFields);
             written.addAll(optionalFields);
         }
+
         // Then write remaining fields in alphabetic order.
         SortedSet<Field> remainingFields = entry.getFields()
                                                 .stream()
                                                 .filter(key -> !written.contains(key))
                                                 .collect(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(Field::getName))));
-
         for (Field field : remainingFields) {
             writeField(entry, out, field, indent);
         }
@@ -173,7 +172,7 @@ public class BibEntryWriter {
     }
 
     static int getLengthOfLongestFieldName(BibEntry entry) {
-        Predicate<Field> isNotCitationKey = field -> !InternalField.KEY_FIELD.equals(field);
+        Predicate<Field> isNotCitationKey = field -> InternalField.KEY_FIELD != field;
         return entry.getFields()
                     .stream()
                     .filter(isNotCitationKey)
