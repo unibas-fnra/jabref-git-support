@@ -101,3 +101,7 @@ For IntelliJ IDEA, just import the project via a Gradle Import by pointing at th
 
 JabRef development is powered by YourKit Java Profiler  
 [![YourKit Java Profiler](https://www.yourkit.com/images/yk_logo.svg)](https://www.yourkit.com/java/profiler/)
+
+
+## Miscelleanous
+This project is used by the software engineering class, HS24 at the University of Basel
