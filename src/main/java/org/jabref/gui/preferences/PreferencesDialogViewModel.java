@@ -23,6 +23,7 @@ import org.jabref.gui.preferences.export.ExportTab;
 import org.jabref.gui.preferences.external.ExternalTab;
 import org.jabref.gui.preferences.externalfiletypes.ExternalFileTypesTab;
 import org.jabref.gui.preferences.general.GeneralTab;
+import org.jabref.gui.preferences.gitsupport.GitSupportTab;
 import org.jabref.gui.preferences.groups.GroupsTab;
 import org.jabref.gui.preferences.journals.JournalAbbreviationsTab;
 import org.jabref.gui.preferences.keybindings.KeyBindingsTab;
@@ -82,7 +83,8 @@ public class PreferencesDialogViewModel extends AbstractViewModel {
                 new XmpPrivacyTab(),
                 new CustomImporterTab(),
                 new CustomExporterTab(),
-                new NetworkTab()
+                new NetworkTab(),
+                new GitSupportTab()
         );
     }
 
