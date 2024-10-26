@@ -41,6 +41,8 @@ import org.jabref.gui.duplicationFinder.DuplicateResolverDialog;
 import org.jabref.gui.entryeditor.EntryEditorPreferences;
 import org.jabref.gui.externalfiletype.ExternalFileType;
 import org.jabref.gui.externalfiletype.ExternalFileTypes;
+import org.jabref.gui.gitsupport.AuthenticationViewMode;
+import org.jabref.gui.gitsupport.GitSupportPreferences;
 import org.jabref.gui.groups.GroupViewMode;
 import org.jabref.gui.groups.GroupsPreferences;
 import org.jabref.gui.keyboard.KeyBindingRepository;
@@ -432,6 +434,11 @@ public class JabRefPreferences implements PreferencesService {
     private static final String GROUP_INTERSECT_UNION_VIEW_MODE = "groupIntersectUnionViewModes";
     private static final String DEFAULT_HIERARCHICAL_CONTEXT = "defaultHierarchicalContext";
 
+    // AuthenticationViewMode
+    private static final String AUTHENTICATION_SSH_CREDENTIALS_VIEW_MODE = "authenticationSSHCredentialsViewMode";
+    public static final String GIT_SUPPORT_ENABLED_PROPERTY  = "gitSupportEnabledProperty";
+
+
     // Dialog states
     private static final String PREFS_EXPORT_PATH = "prefsExportPath";
     private static final String DOWNLOAD_LINKED_FILES = "downloadLinkedFiles";
@@ -492,6 +499,8 @@ public class JabRefPreferences implements PreferencesService {
     private InternalPreferences internalPreferences;
     private SpecialFieldsPreferences specialFieldsPreferences;
     private GroupsPreferences groupsPreferences;
+
+    private GitSupportPreferences gitSupportPreferences;
     private XmpPreferences xmpPreferences;
     private AutoCompletePreferences autoCompletePreferences;
     private CleanupPreferences cleanupPreferences;
@@ -687,6 +696,11 @@ public class JabRefPreferences implements PreferencesService {
         defaults.put(SHOW_ADVANCED_HINTS, Boolean.TRUE);
 
         defaults.put(EXTRA_FILE_COLUMNS, Boolean.FALSE);
+
+        //set SSH to default, feel free to change.
+        defaults.put(AUTHENTICATION_SSH_CREDENTIALS_VIEW_MODE, AuthenticationViewMode.SSH.name());
+        defaults.put(GIT_SUPPORT_ENABLED_PROPERTY, Boolean.FALSE);
+
 
         defaults.put(PROTECTED_TERMS_ENABLED_INTERNAL, convertListToString(ProtectedTermsLoader.getInternalLists()));
         defaults.put(PROTECTED_TERMS_DISABLED_INTERNAL, "");
@@ -1369,6 +1383,21 @@ public class JabRefPreferences implements PreferencesService {
         EasyBind.listen(timestampPreferences.addModificationDateProperty(), (obs, oldValue, newValue) -> putBoolean(ADD_MODIFICATION_DATE, newValue));
 
         return timestampPreferences;
+    }
+
+    @Override
+    public GitSupportPreferences getGitSupportPreferences() {
+        if (gitSupportPreferences != null) {
+            return gitSupportPreferences;
+        }
+
+        gitSupportPreferences = new GitSupportPreferences(getBoolean(GIT_SUPPORT_ENABLED_PROPERTY),
+                AuthenticationViewMode.valueOf(get(AUTHENTICATION_SSH_CREDENTIALS_VIEW_MODE)));
+
+        //Did not at any binds yet bc not sure what to do
+
+        return gitSupportPreferences;
+
     }
 
     @Override
