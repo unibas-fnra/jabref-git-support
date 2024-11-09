@@ -46,6 +46,5 @@ public class GitTab extends AbstractPreferenceTabView<GitViewModel> implements P
         authenticationMethod.disableProperty().bind(enableGitSupport.selectedProperty().not());
         synchronizeButton.disableProperty().bind(enableGitSupport.selectedProperty().not());
         authentificationLabel.disableProperty().bind(enableGitSupport.selectedProperty().not());
-
     }
 }

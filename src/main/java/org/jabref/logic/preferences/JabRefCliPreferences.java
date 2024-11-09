@@ -845,8 +845,7 @@ public class JabRefCliPreferences implements CliPreferences {
             return gitPreferences;
         }
 
-        gitPreferences = new GitPreferences(getBoolean(GIT_SUPPORT_ENABLED_PROPERTY),
-                AuthenticationViewMode.valueOf(get(AUTHENTICATION_SSH_CREDENTIALS_VIEW_MODE)),getBoolean(PUSH_FREQUENCY_PROPERTY) );
+        gitPreferences = new GitPreferences(getBoolean(GIT_SUPPORT_ENABLED_PROPERTY), AuthenticationViewMode.valueOf(get(AUTHENTICATION_SSH_CREDENTIALS_VIEW_MODE)), getBoolean(PUSH_FREQUENCY_PROPERTY));
         EasyBind.listen(gitPreferences.getGitSupportEnabledProperty(), (obs, oldValue, newValue) -> putBoolean(GIT_SUPPORT_ENABLED_PROPERTY, newValue));
         EasyBind.listen(gitPreferences.getAuthenticationProperty(), (obs, oldValue, newValue) ->
                 put(AUTHENTICATION_SSH_CREDENTIALS_VIEW_MODE, newValue.name()));

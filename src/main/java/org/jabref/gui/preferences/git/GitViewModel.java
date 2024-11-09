@@ -53,6 +53,7 @@ public class GitViewModel implements PreferenceTabViewModel {
     public BooleanProperty gitSupportEnabledProperty() {
         return gitSupportEnabledProperty;
     }
+
     public BooleanProperty frequencyLabelEnabledProperty() {
         return frequencyLabelEnabledProperty;
     }

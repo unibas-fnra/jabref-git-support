@@ -10,10 +10,10 @@ public class GitPreferences {
     private BooleanProperty frequencyLabelEnabledProperty = new SimpleBooleanProperty();
     private ObjectProperty<AuthenticationViewMode> authenticationMethod = new SimpleObjectProperty<>();
 
-    public GitPreferences(boolean gitSupportEnabledProperty, AuthenticationViewMode authenticationMethod,boolean frequencyLabelEnabledProperty ) {
+    public GitPreferences(boolean gitSupportEnabledProperty, AuthenticationViewMode authenticationMethod, boolean frequencyLabelEnabledProperty) {
         this.gitSupportEnabledProperty = new SimpleBooleanProperty(gitSupportEnabledProperty);
         this.authenticationMethod = new SimpleObjectProperty<AuthenticationViewMode>(authenticationMethod);
-        this.frequencyLabelEnabledProperty= new SimpleBooleanProperty(frequencyLabelEnabledProperty);
+        this.frequencyLabelEnabledProperty = new SimpleBooleanProperty(frequencyLabelEnabledProperty);
     }
 
     public AuthenticationViewMode getAuthenticationMethod() {
