@@ -16,7 +16,6 @@ public class GitViewModel implements PreferenceTabViewModel {
     private final BooleanProperty gitSupportEnabledProperty = new SimpleBooleanProperty();
     private final BooleanProperty frequencyLabelEnabledProperty = new SimpleBooleanProperty();
     private final ObjectProperty<AuthenticationViewMode> authenticationMethod = new SimpleObjectProperty<>();
-
     private final GitPreferences gitPreferences;
 
     public GitViewModel(GitPreferences gitPreferences) {
@@ -43,9 +42,9 @@ public class GitViewModel implements PreferenceTabViewModel {
         gitPreferences.setGitSupportEnabledProperty(gitSupportEnabledProperty.getValue());
         gitPreferences.setFrequencyLabelEnabledProperty(frequencyLabelEnabledProperty.getValue());
 
-        if (AuthenticationViewMode.SSH.equals(authenticationMethod.getValue())) {
+        if (AuthenticationViewMode.SSH == authenticationMethod.getValue()) {
             gitPreferences.setAuthenticationMethod(AuthenticationViewMode.SSH);
-        } else if (AuthenticationViewMode.CREDENTIALS.equals(authenticationMethod.getValue())) {
+        } else if (AuthenticationViewMode.CREDENTIALS == authenticationMethod.getValue()) {
             gitPreferences.setAuthenticationMethod(AuthenticationViewMode.CREDENTIALS);
         }
     }

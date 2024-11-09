@@ -12,7 +12,7 @@ public class GitPreferences {
 
     public GitPreferences(boolean gitSupportEnabledProperty, AuthenticationViewMode authenticationMethod, boolean frequencyLabelEnabledProperty) {
         this.gitSupportEnabledProperty = new SimpleBooleanProperty(gitSupportEnabledProperty);
-        this.authenticationMethod = new SimpleObjectProperty<AuthenticationViewMode>(authenticationMethod);
+        this.authenticationMethod = new SimpleObjectProperty<>(authenticationMethod);
         this.frequencyLabelEnabledProperty = new SimpleBooleanProperty(frequencyLabelEnabledProperty);
     }
 
