@@ -7,11 +7,13 @@ import javafx.beans.property.SimpleObjectProperty;
 
 public class GitPreferences {
     private BooleanProperty gitSupportEnabledProperty = new SimpleBooleanProperty();
+    private BooleanProperty frequencyLabelEnabledProperty = new SimpleBooleanProperty();
     private ObjectProperty<AuthenticationViewMode> authenticationMethod = new SimpleObjectProperty<>();
 
-    public GitPreferences(boolean gitSupportEnabledProperty, AuthenticationViewMode authenticationMethod) {
+    public GitPreferences(boolean gitSupportEnabledProperty, AuthenticationViewMode authenticationMethod,boolean frequencyLabelEnabledProperty ) {
         this.gitSupportEnabledProperty = new SimpleBooleanProperty(gitSupportEnabledProperty);
         this.authenticationMethod = new SimpleObjectProperty<AuthenticationViewMode>(authenticationMethod);
+        this.frequencyLabelEnabledProperty= new SimpleBooleanProperty(frequencyLabelEnabledProperty);
     }
 
     public AuthenticationViewMode getAuthenticationMethod() {
@@ -30,11 +32,23 @@ public class GitPreferences {
         return gitSupportEnabledProperty.getValue();
     }
 
+    public boolean isFrequencyLabelEnabled() {
+        return frequencyLabelEnabledProperty.getValue();
+    }
+
     public BooleanProperty getGitSupportEnabledProperty() {
         return gitSupportEnabledProperty;
     }
 
+    public BooleanProperty getFrequencyLabelEnabledProperty() {
+        return frequencyLabelEnabledProperty;
+    }
+
     public void setGitSupportEnabledProperty(boolean gitSupportEnabledProperty) {
         this.gitSupportEnabledProperty.set(gitSupportEnabledProperty);
+    }
+
+    public void setFrequencyLabelEnabledProperty(boolean frequencyLabelEnabledProperty) {
+        this.frequencyLabelEnabledProperty.set(frequencyLabelEnabledProperty);
     }
 }

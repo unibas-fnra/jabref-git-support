@@ -336,7 +336,7 @@ public class JabRefCliPreferences implements CliPreferences {
     // AuthenticationViewMode
     private static final String AUTHENTICATION_SSH_CREDENTIALS_VIEW_MODE = "authenticationSSHCredentialsViewMode";
     private static final String GIT_SUPPORT_ENABLED_PROPERTY = "gitSupportEnabledProperty";
-
+    private static final String PUSH_FREQUENCY_PROPERTY = "pushFrequency";
     // Dilog states
     private static final String PREFS_EXPORT_PATH = "prefsExportPath";
     private static final String DOWNLOAD_LINKED_FILES = "downloadLinkedFiles";
@@ -376,6 +376,8 @@ public class JabRefCliPreferences implements CliPreferences {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(JabRefCliPreferences.class);
     private static final Preferences PREFS_NODE = Preferences.userRoot().node("/org/jabref");
+
+
 
     // The only instance of this class:
     private static JabRefCliPreferences singleton;
@@ -659,6 +661,7 @@ public class JabRefCliPreferences implements CliPreferences {
         defaults.put(AI_RAG_MIN_SCORE, AiDefaultPreferences.RAG_MIN_SCORE);
         defaults.put(AUTHENTICATION_SSH_CREDENTIALS_VIEW_MODE, AuthenticationViewMode.SSH.name());
         defaults.put(GIT_SUPPORT_ENABLED_PROPERTY, Boolean.FALSE);
+        defaults.put(PUSH_FREQUENCY_PROPERTY, Boolean.FALSE);
         // endregion
     }
 
@@ -843,7 +846,11 @@ public class JabRefCliPreferences implements CliPreferences {
         }
 
         gitPreferences = new GitPreferences(getBoolean(GIT_SUPPORT_ENABLED_PROPERTY),
-                AuthenticationViewMode.valueOf(get(AUTHENTICATION_SSH_CREDENTIALS_VIEW_MODE)));
+                AuthenticationViewMode.valueOf(get(AUTHENTICATION_SSH_CREDENTIALS_VIEW_MODE)),getBoolean(PUSH_FREQUENCY_PROPERTY) );
+        EasyBind.listen(gitPreferences.getGitSupportEnabledProperty(), (obs, oldValue, newValue) -> putBoolean(GIT_SUPPORT_ENABLED_PROPERTY, newValue));
+        EasyBind.listen(gitPreferences.getAuthenticationProperty(), (obs, oldValue, newValue) ->
+                put(AUTHENTICATION_SSH_CREDENTIALS_VIEW_MODE, newValue.name()));
+        EasyBind.listen(gitPreferences.getFrequencyLabelEnabledProperty(), (obs, oldValue, newValue) -> putBoolean(PUSH_FREQUENCY_PROPERTY, newValue));
         return gitPreferences;
     }
 

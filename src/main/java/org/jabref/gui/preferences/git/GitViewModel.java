@@ -14,6 +14,7 @@ import org.jabref.logic.git.GitPreferences;
 public class GitViewModel implements PreferenceTabViewModel {
 
     private final BooleanProperty gitSupportEnabledProperty = new SimpleBooleanProperty();
+    private final BooleanProperty frequencyLabelEnabledProperty = new SimpleBooleanProperty();
     private final ObjectProperty<AuthenticationViewMode> authenticationMethod = new SimpleObjectProperty<>();
 
     private final GitPreferences gitPreferences;
@@ -31,6 +32,7 @@ public class GitViewModel implements PreferenceTabViewModel {
                     authenticationMethod.setValue(AuthenticationViewMode.CREDENTIALS);
         }
         gitSupportEnabledProperty.setValue(gitPreferences.isGitEnabled());
+        frequencyLabelEnabledProperty.setValue(gitPreferences.isFrequencyLabelEnabled());
     }
 
     /**
@@ -39,6 +41,7 @@ public class GitViewModel implements PreferenceTabViewModel {
     @Override
     public void storeSettings() {
         gitPreferences.setGitSupportEnabledProperty(gitSupportEnabledProperty.getValue());
+        gitPreferences.setFrequencyLabelEnabledProperty(frequencyLabelEnabledProperty.getValue());
 
         if (AuthenticationViewMode.SSH.equals(authenticationMethod.getValue())) {
             gitPreferences.setAuthenticationMethod(AuthenticationViewMode.SSH);
@@ -49,6 +52,9 @@ public class GitViewModel implements PreferenceTabViewModel {
 
     public BooleanProperty gitSupportEnabledProperty() {
         return gitSupportEnabledProperty;
+    }
+    public BooleanProperty frequencyLabelEnabledProperty() {
+        return frequencyLabelEnabledProperty;
     }
 
     public AuthenticationViewMode authenticationViewMode() {

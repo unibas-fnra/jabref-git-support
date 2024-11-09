@@ -39,10 +39,13 @@ public class GitTab extends AbstractPreferenceTabView<GitViewModel> implements P
 
     public void initialize() {
         this.viewModel = new GitViewModel(preferences.getGitSupportPreferences());
+        enableGitSupport.selectedProperty().bindBidirectional(viewModel.gitSupportEnabledProperty());
+        frequencyLabel.selectedProperty().bindBidirectional(viewModel.frequencyLabelEnabledProperty());
         frequencyLabel.disableProperty().bind(enableGitSupport.selectedProperty().not());
         setPushFrequency.disableProperty().bind(enableGitSupport.selectedProperty().not());
         authenticationMethod.disableProperty().bind(enableGitSupport.selectedProperty().not());
         synchronizeButton.disableProperty().bind(enableGitSupport.selectedProperty().not());
         authentificationLabel.disableProperty().bind(enableGitSupport.selectedProperty().not());
+
     }
 }
