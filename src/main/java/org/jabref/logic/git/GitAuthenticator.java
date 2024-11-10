@@ -1,7 +1,6 @@
 package org.jabref.logic.git;
 
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Optional;
 
 import org.eclipse.jgit.api.TransportCommand;
@@ -25,7 +24,7 @@ class GitAuthenticator {
     // TODO: temp
     private static String sshPassPhrase = Optional.ofNullable(System.getenv("GIT_SSH_PASSPHRASE")).orElse("");
     // TODO: temp
-    private static Path homeDirectory = Paths.get(Optional.of(System.getProperty("user.home")).orElse(""));
+    private static Path homeDirectory = Path.of(Optional.of(System.getProperty("user.home")).orElse(""));
     // TODO: temp
     private static Path sshDirectory = homeDirectory.resolve(".ssh");
 
