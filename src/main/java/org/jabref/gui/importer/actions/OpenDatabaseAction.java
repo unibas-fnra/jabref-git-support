@@ -214,9 +214,7 @@ public class OpenDatabaseAction extends SimpleCommand {
                 clipboardManager,
                 taskExecutor);
         tabContainer.addTab(newTab, true);
-
-        if (newTab.getBibDatabaseContext().isInGitRepository()) {
-        // TODO: use git preferences to determine whether to call the update methode
+        if (newTab.getBibDatabaseContext().isInGitRepository() && preferences.getGitPreferences().isGitEnabled()) {
             Optional<GitManager> optionalGitManager = newTab.getGitManager();
             // using run later to prevent the dialog window from being blocked by the main JabRef window
             Platform.runLater(() -> optionalGitManager.ifPresent(this::updateGitRepo));
@@ -319,7 +317,7 @@ public class OpenDatabaseAction extends SimpleCommand {
             // TODO: disable ChangeScanner? following exception is thrown even though no changes are made:
             //  org.jabref.gui.collab.ChangeScanner.scanForChanges()
             //  WARN: Error while parsing changed file.: java.nio.file.NoSuchFileException:
-            
+
             // TODO: disable file listener and enable it after the update is done
             gitManager.update();
             dialogService.notify(Localization.lang("Pulled the latest changes from the remote repository."));

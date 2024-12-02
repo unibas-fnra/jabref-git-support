@@ -240,7 +240,7 @@ public class SaveDatabaseAction {
                 libraryTab.getUndoManager().markUnchanged();
                 libraryTab.resetChangedProperties();
 
-                if (libraryTab.getBibDatabaseContext().isInGitRepository()) {
+                if (libraryTab.getBibDatabaseContext().isInGitRepository() && preferences.getGitPreferences().isGitEnabled()) {
                     pushToGit(targetPath);
                 }
             }
