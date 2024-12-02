@@ -3,7 +3,9 @@ package org.jabref.logic.git;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Optional;
+import java.util.Set;
 
 import org.jabref.gui.DialogService;
 import org.jabref.logic.l10n.Localization;
@@ -31,7 +33,6 @@ public class GitManager {
 
     public GitManager(Git git, GitPreferences preferences) {
         this.path = git.getRepository().getDirectory().getParentFile().toPath();
-
         this.git = git;
         this.gitActionExecutor = new GitActionExecutor(this.git, new GitAuthenticator(preferences));
         this.gitStatus = new GitStatus(this.git);
@@ -40,17 +41,15 @@ public class GitManager {
     }
 
     public void synchronize(Path filePath) throws GitException {
-        // TODO: assert that the given filePath is in the untrackedFiles (getUntrackedFiles())
-        if (!gitStatus.hasUntrackedFiles()) {
+        Set<Path> untrackedFiles = gitStatus.getUntrackedFiles();
+        if (!untrackedFiles.contains(filePath)) {
             LOGGER.debug("No changes detected in {}. Skipping git operations.", path);
             throw new GitException("No changes detected in bib file. Skipping git operations.",
                     Localization.lang("No changes detected in bib file. Skipping git operations."));
         }
         if (gitStatus.hasTrackedFiles()) {
-//             TODO: stash tracked file and apply stash after commit (with error handling)
-//              or set them to untracked
-            LOGGER.debug("Staging area is not empty.");
-            throw new GitException("Staging area is not empty.", Localization.lang("Staging area is not empty."));
+            Set<Path> trackedFiles = gitStatus.getTrackedFiles();
+            gitActionExecutor.unstage(new ArrayList<>(trackedFiles));
         }
         gitActionExecutor.add(filePath);
         LOGGER.debug("file was added to staging area successfully");

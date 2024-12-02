@@ -156,6 +156,42 @@ class GitActionExecutor {
         }
     }
 
+    /**
+     * Removes the specified file from the staging area (unstages it).
+     *
+     * @param path the path to the file to be unstaged
+     * @throws GitException if the unstage operation fails
+     */
+    void unstage(Path path) throws GitException {
+        if (!path.startsWith(repository)) {
+            throw new GitException("Given path not inside repository.");
+        }
+        try {
+            Path relativePath = repository.relativize(path);
+
+            git.reset()
+               .addPath(relativePath.toString())
+               .call();
+
+            LOGGER.debug("File unstaged: {}", path);
+        } catch (GitAPIException e) {
+            throw new GitException("Failed to unstage file " + path, e);
+        }
+    }
+    
+
+    /**
+     * Removes a list of files from the staging area (unstages them).
+     *
+     * @param paths the list of file paths to be unstaged
+     * @throws GitException if the unstage operation fails
+     */
+    void unstage(List<Path> paths) throws GitException {
+        for (Path path : paths) {
+            unstage(path); // Reuse the single-file unstage logic
+        }
+    }
+
     void stash() throws GitException {
         try {
             git.stashCreate().setIncludeUntracked(false).call();
