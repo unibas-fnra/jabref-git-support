@@ -268,6 +268,10 @@ public class LibraryTab extends Tab {
         });
     }
 
+    public Optional<DatabaseChangeMonitor> getChangeMonitor() {
+        return changeMonitor;
+    }
+
     private void initializeGitManager() {
         if (!this.bibDatabaseContext.isInGitRepository()) {
             LOGGER.debug("File is not in a git repository");

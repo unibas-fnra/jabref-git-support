@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory;
 public class DatabaseChangeMonitor implements FileUpdateListener {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DatabaseChangeMonitor.class);
-
+    public List<DatabaseChange> pendingChanges = new ArrayList<>();
     private final BibDatabaseContext database;
     private final FileUpdateMonitor fileMonitor;
     private final List<DatabaseChangeListener> listeners;
@@ -106,6 +106,7 @@ public class DatabaseChangeMonitor implements FileUpdateListener {
                           .onSuccess(changes -> {
                               if (!changes.isEmpty()) {
                                   listeners.forEach(listener -> listener.databaseChanged(changes));
+                                  pendingChanges = changes;
                               }
                           })
                           .onFailure(e -> LOGGER.error("Error while watching for changes", e))
@@ -117,7 +118,40 @@ public class DatabaseChangeMonitor implements FileUpdateListener {
         listeners.add(listener);
     }
 
+    public void acceptChanges(DatabaseChangeMonitor changeMonitor) {
+        if (changeMonitor != null) {
+            ChangeScanner scanner = new ChangeScanner(database, dialogService, preferences);
+            List<DatabaseChange> changes = scanner.scanForChanges();
+
+            if (!changes.isEmpty()) {
+                LOGGER.info("Detected changes: {}", changes);
+                changeMonitor.pendingChanges = changes;
+
+                NamedCompound ce = new NamedCompound("Merged external changes");
+                pendingChanges.forEach(change -> {
+                    change.accept();
+                    change.applyChange(ce);
+                });
+                ce.end();
+                saveState = stateManager.activeTabProperty().get().get();
+                saveState.resetChangedProperties();
+            } else {
+                LOGGER.info("No changes detected after Git update.");
+            }
+        }
+    }
+
     public void unregister() {
         database.getDatabasePath().ifPresent(file -> fileMonitor.removeListener(file, this));
+    }
+
+    public void register() {
+            database.getDatabasePath().ifPresent(path -> {
+                try {
+                    fileMonitor.addListenerForFile(path, this);
+                } catch (IOException e) {
+                    LOGGER.debug("Error while re-registering file listener for {}", path, e);
+                }
+            });
     }
 }

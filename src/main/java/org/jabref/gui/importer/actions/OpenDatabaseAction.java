@@ -21,6 +21,7 @@ import org.jabref.gui.LibraryTabContainer;
 import org.jabref.gui.StateManager;
 import org.jabref.gui.actions.SimpleCommand;
 import org.jabref.gui.autosaveandbackup.BackupManager;
+import org.jabref.gui.collab.DatabaseChangeMonitor;
 import org.jabref.gui.dialogs.BackupUIManager;
 import org.jabref.gui.preferences.GuiPreferences;
 import org.jabref.gui.shared.SharedDatabaseUIManager;
@@ -215,10 +216,21 @@ public class OpenDatabaseAction extends SimpleCommand {
                 taskExecutor);
         tabContainer.addTab(newTab, true);
         if (newTab.getBibDatabaseContext().isInGitRepository() && preferences.getGitPreferences().isGitEnabled()) {
-            Optional<GitManager> optionalGitManager = newTab.getGitManager();
-            // using run later to prevent the dialog window from being blocked by the main JabRef window
-            Platform.runLater(() -> optionalGitManager.ifPresent(this::updateGitRepo));
+            handleGitOperationsForTab(newTab, file);
         }
+    }
+
+    private void handleGitOperationsForTab(LibraryTab newTab, Path file) {
+        newTab.getGitManager().ifPresent(gitManager -> Platform.runLater(() -> {
+            try {
+                newTab.getChangeMonitor().ifPresentOrElse(
+                        changeMonitor -> updateGitRepo(gitManager, changeMonitor, newTab, file),
+                        () -> updateGitRepo(gitManager, null, newTab, file)
+                );
+            } catch (Exception e) {
+                LOGGER.error("Error while updating Git repository for file {}", file, e);
+            }
+        }));
     }
 
     private ParserResult loadDatabase(Path file) throws Exception {
@@ -307,23 +319,27 @@ public class OpenDatabaseAction extends SimpleCommand {
         }
     }
 
-    void updateGitRepo(GitManager gitManager) {
+    private void updateGitRepo(GitManager gitManager, DatabaseChangeMonitor changeMonitor, LibraryTab newTab, Path file) {
         if (gitManager == null) {
             LOGGER.warn("GitManager has not been initialized.");
             return;
         }
-        try {
-            gitManager.promptForPassphraseIfNeeded(dialogService);
-            // TODO: disable ChangeScanner? following exception is thrown even though no changes are made:
-            //  org.jabref.gui.collab.ChangeScanner.scanForChanges()
-            //  WARN: Error while parsing changed file.: java.nio.file.NoSuchFileException:
+        if (changeMonitor == null) {
+            LOGGER.error("..");
+            return;
+        }
 
-            // TODO: disable file listener and enable it after the update is done
+        try {
+            changeMonitor.unregister();
+            gitManager.promptForPassphraseIfNeeded(dialogService);
             gitManager.update();
-            dialogService.notify(Localization.lang("Pulled the latest changes from the remote repository."));
+            LOGGER.info("Git pull operation completed successfully.");
+            changeMonitor.acceptChanges(changeMonitor);
         } catch (GitException e) {
             LOGGER.warn("Error performing git pull for git repo {}", gitManager.getPath(), e);
-            dialogService.notify(e.getLocalizedMessage());
+            dialogService.notify(Localization.lang("Failed to pull changes: %0", e.getLocalizedMessage()));
+        } finally {
+            changeMonitor.register();
         }
     }
 }
