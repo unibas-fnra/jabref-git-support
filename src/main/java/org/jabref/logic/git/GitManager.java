@@ -28,6 +28,7 @@ public class GitManager {
     private final GitPreferences preferences;
     private final GitActionExecutor gitActionExecutor;
     private final GitStatus gitStatus;
+    private int saveCount;
 
     private GitProtocol gitProtocol = GitProtocol.UNKNOWN;
 
@@ -41,6 +42,18 @@ public class GitManager {
     }
 
     public void synchronize(Path filePath) throws GitException {
+        int pushFrequency = preferences.getPushFrequency().map(Integer::parseInt).orElse(1);
+        saveCount++;
+        LOGGER.info("{} push", pushFrequency);
+        LOGGER.info("Current save count: {}", saveCount);
+        if (saveCount < pushFrequency) {
+            return;
+        }
+        if (pushFrequency <= 0) {
+            LOGGER.warn("Invalid push frequency: {}. Push frequency must be greater than 0.", pushFrequency);
+            return;
+        }
+
         Set<Path> untrackedFiles = gitStatus.getUntrackedFiles();
         if (!untrackedFiles.contains(filePath)) {
             LOGGER.debug("No changes detected in {}. Skipping git operations.", path);
@@ -59,6 +72,7 @@ public class GitManager {
         gitActionExecutor.push();
         LOGGER.debug("{} was pushed successfully", filePath);
         updateAuthenticationStatus();
+        saveCount = 0;
     }
 
     public void update() throws GitException {
