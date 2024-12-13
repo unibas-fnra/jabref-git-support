@@ -1,18 +1,23 @@
 package org.jabref.logic.git;
 
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Optional;
+import java.util.Set;
 
 import org.jabref.gui.DialogService;
 import org.jabref.logic.l10n.Localization;
 
 import org.eclipse.jgit.api.Git;
-import org.eclipse.jgit.api.LsRemoteCommand;
 import org.eclipse.jgit.api.errors.GitAPIException;
+import org.eclipse.jgit.errors.NotSupportedException;
+import org.eclipse.jgit.errors.TransportException;
 import org.eclipse.jgit.transport.HttpTransport;
 import org.eclipse.jgit.transport.SshTransport;
+import org.eclipse.jgit.transport.Transport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,31 +31,45 @@ public class GitManager {
     private final GitPreferences preferences;
     private final GitActionExecutor gitActionExecutor;
     private final GitStatus gitStatus;
+    private int saveCount;
 
     private GitProtocol gitProtocol = GitProtocol.UNKNOWN;
 
     public GitManager(Git git, GitPreferences preferences) {
         this.path = git.getRepository().getDirectory().getParentFile().toPath();
-
         this.git = git;
-        this.gitActionExecutor = new GitActionExecutor(this.git, new GitAuthenticator(preferences));
         this.gitStatus = new GitStatus(this.git);
+        this.gitActionExecutor = new GitActionExecutor(this.git, new GitAuthenticator(preferences), this.gitStatus);
         this.preferences = preferences;
         determineGitProtocol();
     }
 
+    public void synchronizeWithFrequency(Path filePath) throws GitException {
+        int pushFrequency = preferences.getPushFrequency().map(Integer::parseInt).orElse(1);
+        saveCount++;
+        LOGGER.info("{} push", pushFrequency);
+        LOGGER.info("Current save count: {}", saveCount);
+        if (saveCount < pushFrequency) {
+            return;
+        }
+        if (pushFrequency <= 0) {
+            LOGGER.warn("Invalid push frequency: {}. Push frequency must be greater than 0.", pushFrequency);
+            return;
+        }
+        synchronize(filePath);
+        saveCount = 0;
+    }
+
     public void synchronize(Path filePath) throws GitException {
-        // TODO: assert that the given filePath is in the untrackedFiles (getUntrackedFiles())
-        if (!gitStatus.hasUntrackedFiles()) {
+        Set<Path> untrackedFiles = gitStatus.getUntrackedFiles();
+        if (!untrackedFiles.contains(filePath)) {
             LOGGER.debug("No changes detected in {}. Skipping git operations.", path);
             throw new GitException("No changes detected in bib file. Skipping git operations.",
                     Localization.lang("No changes detected in bib file. Skipping git operations."));
         }
         if (gitStatus.hasTrackedFiles()) {
-//             TODO: stash tracked file and apply stash after commit (with error handling)
-//              or set them to untracked
-            LOGGER.debug("Staging area is not empty.");
-            throw new GitException("Staging area is not empty.", Localization.lang("Staging area is not empty."));
+            Set<Path> trackedFiles = gitStatus.getTrackedFiles();
+            gitActionExecutor.unstage(new ArrayList<>(trackedFiles));
         }
         gitActionExecutor.add(filePath);
         LOGGER.debug("file was added to staging area successfully");
@@ -159,23 +178,23 @@ public class GitManager {
     }
 
     /**
-     * determines the protocol of the current git repository.
+     * determines the protocol used to communicate with origin.
      */
     private void determineGitProtocol() {
-        LsRemoteCommand lsRemoteCommand = git.lsRemote();
-        lsRemoteCommand.setTransportConfigCallback(transport -> {
+        try {
+            Transport transport = Transport.open(git.getRepository(), "origin");
             if (transport instanceof SshTransport) {
+                LOGGER.debug("SSH protocol detected");
                 gitProtocol = GitProtocol.SSH;
             } else if (transport instanceof HttpTransport) {
+                LOGGER.debug("Http protocol detected");
                 gitProtocol = GitProtocol.HTTPS;
             } else {
+                LOGGER.debug("unknown protocol detected");
                 gitProtocol = GitProtocol.UNKNOWN;
             }
-        });
-        try {
-            lsRemoteCommand.call();
-        } catch (GitAPIException e) {
-            LOGGER.debug("determined protocol of current git repository: {}", gitProtocol);
+        } catch (NotSupportedException | URISyntaxException | TransportException e) {
+            LOGGER.warn("Failed to determine git protocol");
         }
     }
 

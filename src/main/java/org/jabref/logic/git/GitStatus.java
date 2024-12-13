@@ -52,9 +52,7 @@ class GitStatus {
             throw new GitException("Failed to get git status", e);
         }
         Set<String> untrackedFiles = new HashSet<>(status.getUntracked());
-        LOGGER.error("Untracked files: {}", untrackedFiles);
         untrackedFiles.addAll(status.getModified());
-        LOGGER.error("Untracked files: {}", untrackedFiles);
         Set<Path> untrackedFilesPaths = new HashSet<>();
         for (String untrackedFile : untrackedFiles) {
             untrackedFilesPaths.add(repository.resolve(untrackedFile));
@@ -80,5 +78,24 @@ class GitStatus {
             trackedFilesPaths.add(repository.resolve(trackedFile));
         }
         return trackedFilesPaths;
+    }
+
+    boolean hasUntrackedFolders() throws GitException {
+        return !getUntrackedFolders().isEmpty();
+    }
+
+    Set<Path> getUntrackedFolders() throws GitException {
+        Status status;
+        try {
+            status = this.git.status().call();
+        } catch (GitAPIException e) {
+            throw new GitException("Failed to get git status", e);
+        }
+        Set<String> untrackedFolders = new HashSet<>(status.getUntrackedFolders());
+        Set<Path> untrackedFoldersPaths = new HashSet<>();
+        for (String untrackedFolder : untrackedFolders) {
+            untrackedFoldersPaths.add(repository.resolve(untrackedFolder));
+        }
+        return untrackedFoldersPaths;
     }
 }

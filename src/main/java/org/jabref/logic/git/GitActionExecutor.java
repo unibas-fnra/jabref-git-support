@@ -25,27 +25,38 @@ class GitActionExecutor {
     private final Git git;
     private final Path repository;
     private final GitAuthenticator gitAuthenticator;
+    private final GitStatus gitStatus;
 
     private ObjectId previousHead;
 
-    GitActionExecutor(Git git, GitAuthenticator gitAuthenticator) {
+    GitActionExecutor(Git git, GitAuthenticator gitAuthenticator, GitStatus gitStatus) {
         this.git = git;
         File gitRepository = git.getRepository().getDirectory(); // this the file path including .git at the end
         this.repository = gitRepository.getParentFile().toPath();
         this.gitAuthenticator = gitAuthenticator;
+        this.gitStatus = gitStatus;
     }
 
-//    TODO:
-//     when adding a file located in a new subdirectory this method fails silently
-//     adding the parent directory of the file seems to fix the issue:
-//     git.add().addFilepattern(relativePath.getParent().toString()).call();
-//     but this would add all files within to the staging area which is not the desired behavior
-//     fix and write tests for files in already existing and newly created subdirectories
+    /**
+     * Adds the specified file to the staging area. If the file is located in an untracked folder,
+     * the untracked folder is added instead.
+     *
+     * @param path The path to the file to be added
+     * @throws GitException If the add operation fails or the given path is not inside the repository
+     * @implNote When adding a file located in a new subdirectory the add command provided by JGit fails silently.
+     *           To work around this issue, the parent directory of the file is added instead.
+     */
     void add(Path path) throws GitException {
         if (!path.startsWith(repository)) {
             throw new GitException("Given path not inside repository.");
         }
         try {
+            for (Path untrackedFolder : gitStatus.getUntrackedFolders()) {
+                if (path.startsWith(untrackedFolder) && !path.equals(untrackedFolder)) {
+                    add(untrackedFolder);
+                    return;
+                }
+            }
             Path relativePath = repository.relativize(path);
             git.add().addFilepattern(relativePath.toString()).call();
             LOGGER.debug("File added to staging: {}", path);
@@ -153,6 +164,42 @@ class GitActionExecutor {
             LOGGER.debug("Last pull undone (hard reset to previous HEAD).");
         } catch (GitAPIException e) {
             throw new GitException("Failed to undo latest git pull", e);
+        }
+    }
+
+    /**
+     * Removes the specified file from the staging area (unstages it).
+     *
+     * @param path the path to the file to be unstaged
+     * @throws GitException if the unstage operation fails
+     */
+    void unstage(Path path) throws GitException {
+        if (!path.startsWith(repository)) {
+            throw new GitException("Given path not inside repository.");
+        }
+        try {
+            Path relativePath = repository.relativize(path);
+
+            git.reset()
+               .addPath(relativePath.toString())
+               .call();
+
+            LOGGER.debug("File unstaged: {}", path);
+        } catch (GitAPIException e) {
+            throw new GitException("Failed to unstage file " + path, e);
+        }
+    }
+
+
+    /**
+     * Removes a list of files from the staging area (unstages them).
+     *
+     * @param paths the list of file paths to be unstaged
+     * @throws GitException if the unstage operation fails
+     */
+    void unstage(List<Path> paths) throws GitException {
+        for (Path path : paths) {
+            unstage(path); // Reuse the single-file unstage logic
         }
     }
 

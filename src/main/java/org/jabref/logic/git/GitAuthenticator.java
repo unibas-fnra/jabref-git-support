@@ -21,10 +21,6 @@ import org.slf4j.LoggerFactory;
 class GitAuthenticator {
     private final static Logger LOGGER = LoggerFactory.getLogger(GitAuthenticator.class);
 
-
-    // TODO: temp
-    private static boolean disableStrictHostKeyChecking = true;
-
     private static final Path HOME_DIRECTORY = Path.of(Optional.of(System.getProperty("user.home")).orElse(""));
     private final GitPreferences preferences;
 
@@ -66,7 +62,7 @@ class GitAuthenticator {
                     }
                 });
 //        TODO: modify after resolving getResource issue
-//        if (disableStrictHostKeyChecking) {
+//        if (preferences.isHostKeyCheckDisabled()) {
 //            getSshConfigFile().ifPresent(file -> sshdSessionFactoryBuilder.setConfigFile(f -> file));
 //        }
         sshTransport.setSshSessionFactory(sshdSessionFactoryBuilder.build(null));
