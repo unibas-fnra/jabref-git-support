@@ -240,8 +240,8 @@ public class SaveDatabaseAction {
                 libraryTab.getUndoManager().markUnchanged();
                 libraryTab.resetChangedProperties();
 
-                if (libraryTab.getBibDatabaseContext().isInGitRepository() && preferences.getGitPreferences().isGitEnabled()) {
-                    pushToGit(targetPath);
+                if (libraryTab.getBibDatabaseContext().isInGitRepository()) {
+                    pushToGitIfNeeded(targetPath);
                 }
             }
             dialogService.notify(Localization.lang("Library saved"));
@@ -318,17 +318,22 @@ public class SaveDatabaseAction {
         }
     }
 
-    private void pushToGit(Path filePath) {
+    private void pushToGitIfNeeded(Path filePath) {
         Optional<GitManager> optionalGitManager = libraryTab.getGitManager();
         if (optionalGitManager.isEmpty()) {
             LOGGER.debug("{} is not in a git repository", filePath);
             return;
         }
+
+        if (!optionalGitManager.get().shouldSynchronize()) {
+            return;
+        }
+
         LOGGER.debug("File is in a git repository");
         try {
             optionalGitManager.get().promptForPassphraseIfNeeded(dialogService);
             // TODO: disable file listener while synchronizing
-            optionalGitManager.get().synchronizeWithFrequency(filePath);
+            optionalGitManager.get().synchronize(filePath);
             dialogService.notify(Localization.lang("Library saved and pushed to remote."));
         } catch (GitException e) {
             LOGGER.warn("Git error during save operation.", e);
