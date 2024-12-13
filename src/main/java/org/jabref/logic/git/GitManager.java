@@ -31,7 +31,7 @@ public class GitManager {
     private final GitPreferences preferences;
     private final GitActionExecutor gitActionExecutor;
     private final GitStatus gitStatus;
-    private int saveCount;
+    private int sychronizeCount;
 
     private GitProtocol gitProtocol = GitProtocol.UNKNOWN;
 
@@ -44,20 +44,39 @@ public class GitManager {
         determineGitProtocol();
     }
 
-    public void synchronizeWithFrequency(Path filePath) throws GitException {
-        int pushFrequency = preferences.getPushFrequency().map(Integer::parseInt).orElse(1);
-        saveCount++;
-        LOGGER.info("{} push", pushFrequency);
-        LOGGER.info("Current save count: {}", saveCount);
-        if (saveCount < pushFrequency) {
-            return;
+    /**
+     * this methode uses user's preferences to determine whether to synchronize the associated
+     * bib file. It also keeps count of how many times it was called. This counter is reset
+     * once this methode has returned true.
+     *
+     * @return false if git is not enabled or git is enabled but the number of times this method was called is
+     *         less than the frequency specified by the user. <br>
+     *         true otherwise
+     */
+    public boolean shouldSynchronize() {
+        if (!preferences.isGitEnabled()) {
+            return false;
         }
+        if (!preferences.isPushFrequencyEnabled()) {
+            return true;
+        }
+
+        int pushFrequency = preferences.getPushFrequency().map(Integer::parseInt).orElse(1);
+
+        sychronizeCount++;
+        LOGGER.debug("push frequency: {}", pushFrequency);
+        LOGGER.debug("Current save count: {}", sychronizeCount);
+        if (sychronizeCount < pushFrequency) {
+            return false;
+        }
+
         if (pushFrequency <= 0) {
             LOGGER.warn("Invalid push frequency: {}. Push frequency must be greater than 0.", pushFrequency);
-            return;
+            return false;
         }
-        synchronize(filePath);
-        saveCount = 0;
+
+        sychronizeCount = 0;
+        return true;
     }
 
     public void synchronize(Path filePath) throws GitException {
