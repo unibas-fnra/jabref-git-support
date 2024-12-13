@@ -1,6 +1,7 @@
 package org.jabref.logic.git;
 
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -11,10 +12,12 @@ import org.jabref.gui.DialogService;
 import org.jabref.logic.l10n.Localization;
 
 import org.eclipse.jgit.api.Git;
-import org.eclipse.jgit.api.LsRemoteCommand;
 import org.eclipse.jgit.api.errors.GitAPIException;
+import org.eclipse.jgit.errors.NotSupportedException;
+import org.eclipse.jgit.errors.TransportException;
 import org.eclipse.jgit.transport.HttpTransport;
 import org.eclipse.jgit.transport.SshTransport;
+import org.eclipse.jgit.transport.Transport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,8 +38,8 @@ public class GitManager {
     public GitManager(Git git, GitPreferences preferences) {
         this.path = git.getRepository().getDirectory().getParentFile().toPath();
         this.git = git;
-        this.gitActionExecutor = new GitActionExecutor(this.git, new GitAuthenticator(preferences));
         this.gitStatus = new GitStatus(this.git);
+        this.gitActionExecutor = new GitActionExecutor(this.git, new GitAuthenticator(preferences), this.gitStatus);
         this.preferences = preferences;
         determineGitProtocol();
     }
@@ -172,23 +175,23 @@ public class GitManager {
     }
 
     /**
-     * determines the protocol of the current git repository.
+     * determines the protocol used to communicate with origin.
      */
     private void determineGitProtocol() {
-        LsRemoteCommand lsRemoteCommand = git.lsRemote();
-        lsRemoteCommand.setTransportConfigCallback(transport -> {
+        try {
+            Transport transport = Transport.open(git.getRepository(), "origin");
             if (transport instanceof SshTransport) {
+                LOGGER.debug("SSH protocol detected");
                 gitProtocol = GitProtocol.SSH;
             } else if (transport instanceof HttpTransport) {
+                LOGGER.debug("Http protocol detected");
                 gitProtocol = GitProtocol.HTTPS;
             } else {
+                LOGGER.debug("unknown protocol detected");
                 gitProtocol = GitProtocol.UNKNOWN;
             }
-        });
-        try {
-            lsRemoteCommand.call();
-        } catch (GitAPIException e) {
-            LOGGER.debug("determined protocol of current git repository: {}", gitProtocol);
+        } catch (NotSupportedException | URISyntaxException | TransportException e) {
+            LOGGER.warn("Failed to determine git protocol");
         }
     }
 

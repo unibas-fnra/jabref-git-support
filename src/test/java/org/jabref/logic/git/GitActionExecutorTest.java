@@ -43,6 +43,7 @@ class GitActionExecutorTest {
     private Path repositoryPath;
     private GitManager gitManager;
     private GitActionExecutor gitActionExecutor;
+    private GitStatus gitStatus;
     private GitPreferences gitPreferences;
 
     private final Logger LOGGER = LoggerFactory.getLogger(GitActionExecutorTest.class);
@@ -51,10 +52,11 @@ class GitActionExecutorTest {
     void setUp(@TempDir Path temporaryRepository) throws GitException, GeneralSecurityException, UnsupportedEncodingException {
         gitPreferences = new GitPreferences(true, "username",
                 new Password("password".toCharArray(), "username").encrypt(), false,
-                "", false, false, false);
+                "", false, false, false, "1");
         this.repositoryPath = temporaryRepository;
         this.gitManager = GitManager.initGitRepository(repositoryPath, gitPreferences);
         this.gitActionExecutor = this.gitManager.getGitActionExecutor();
+        this.gitStatus = this.gitManager.getGitStatus();
     }
 
     @AfterEach
@@ -102,6 +104,36 @@ class GitActionExecutorTest {
         for (Path p : listOfPaths) {
             p.toFile().delete();
         }
+    }
+
+    @Test
+    void addFilesWithinNewSubdirectory() throws IOException, GitAPIException, GitException {
+        Path subDirectory = Files.createDirectories(repositoryPath.resolve("subDirectory"));
+        Path pathToTempFileInSubDirectory = Files.createTempFile(subDirectory, "tmp", null);
+
+        Status status_before_add = gitActionExecutor.getGit().status().call();
+
+        assertFalse(status_before_add.getUntracked().isEmpty(), "Before add, there is one untracked file.");
+        gitActionExecutor.add(pathToTempFileInSubDirectory);
+
+        Status status_after_add = gitActionExecutor.getGit().status().call();
+        assertTrue(status_after_add.getUntracked().isEmpty());
+    }
+
+    @Test
+    void addBehaviorWithHierarchyOfDirectories() throws IOException, GitException, GitAPIException {
+        Path tempDir = Files.createDirectory(repositoryPath.resolve("tempDir"));
+        Path tempSubDir = Files.createDirectory(tempDir.resolve("tempSubDir"));
+        Path tempSubSubDir = Files.createFile(tempSubDir.resolve("tempSubSubDir"));
+        assertTrue(gitStatus.hasUntrackedFolders());
+        assertEquals(1, gitStatus.getUntrackedFolders().size(),
+                "only the parent directory should appear in the list");
+        Path relativePath = repositoryPath.relativize(tempSubDir);
+        gitActionExecutor.getGit().add().addFilepattern(relativePath.toString()).call();
+        assertTrue(gitStatus.hasUntrackedFolders(), "adding the subdirectory is not registered");
+        relativePath = repositoryPath.relativize(tempDir);
+        gitActionExecutor.getGit().add().addFilepattern(relativePath.toString()).call();
+        assertFalse(gitStatus.hasUntrackedFolders(), "adding the parent directory should register correctly");
     }
 
     @Test
