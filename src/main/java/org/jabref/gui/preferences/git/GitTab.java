@@ -16,6 +16,8 @@ import com.airhacks.afterburner.views.ViewLoader;
 import jakarta.inject.Inject;
 
 public class GitTab extends AbstractPreferenceTabView<GitViewModel> implements PreferencesTab {
+    private static int maxFrequency = 100;
+
     @FXML private CheckBox enableGitSupport;
     @FXML private CheckBox hostKeyCheck;
     @FXML private CheckBox pushFrequency;
@@ -55,8 +57,20 @@ public class GitTab extends AbstractPreferenceTabView<GitViewModel> implements P
         this.viewModel = new GitViewModel(preferences.getGitPreferences(), dialogService);
         pushFrequencyInput.setTextFormatter(new TextFormatter<>(change -> {
             String newText = change.getControlNewText();
-            if (newText.matches("\\d*")) {
-                return change;
+
+            if (newText.isEmpty() || newText.matches("\\d*")) {
+                try {
+                    if (!newText.isEmpty()) {
+                        int value = Integer.parseInt(newText);
+                        if (value <= maxFrequency && value != 0) {
+                            return change;
+                        }
+                    } else {
+                        return change;
+                    }
+                } catch (NumberFormatException e) {
+                    return null;
+                }
             }
             return null;
         }));
@@ -66,7 +80,7 @@ public class GitTab extends AbstractPreferenceTabView<GitViewModel> implements P
         pushFrequencyInput.disableProperty().bind(enableGitSupport.selectedProperty().not());
 
         sshPath.textProperty().bindBidirectional(viewModel.sshPathProperty());
-        hostKeyCheck.selectedProperty().bindBidirectional(viewModel.getHostKeyCheckProperty());
+        // hostKeyCheck.selectedProperty().bindBidirectional(viewModel.getHostKeyCheckProperty());
         sshEncrypted.selectedProperty().bindBidirectional(viewModel.getSshEncryptedProperty());
         pushFrequency.selectedProperty().bindBidirectional(viewModel.getFrequencyLabelEnabledProperty());
         pushFrequencyInput.textProperty().bindBidirectional(viewModel.getPushFrequency());
