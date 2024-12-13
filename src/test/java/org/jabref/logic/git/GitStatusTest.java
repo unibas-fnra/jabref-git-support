@@ -39,9 +39,9 @@ class GitStatusTest {
         repositoryPath = temporaryRepository;
         gitPreferences = new GitPreferences(true, "username",
                 new Password("password".toCharArray(), "username").encrypt(), false,
-                "", false, false, false);
+                "", false, false, false, "1");
         gitStatus = new GitStatus(git);
-        gitActionExecutor = new GitActionExecutor(git, new GitAuthenticator(gitPreferences));
+        gitActionExecutor = new GitActionExecutor(git, new GitAuthenticator(gitPreferences), gitStatus);
     }
 
     @AfterEach
@@ -186,5 +186,26 @@ class GitStatusTest {
 //        assertFalse(gitStatus.hasUntrackedFiles());
 //        assertEquals(1, gitStatus.getTrackedFiles().size());
 //        assertEquals(pathToFileInSubDir, gitStatus.getTrackedFiles().iterator().next());
+    }
+
+    @Test
+    void noUntrackedFolders() throws GitException {
+        assertFalse(gitStatus.hasUntrackedFolders());
+    }
+
+    @Test
+    void emptyUntrackedFolders() throws GitException, IOException {
+        Path tempDir = Files.createTempDirectory(repositoryPath, null);
+        assertTrue(gitStatus.hasUntrackedFolders());
+    }
+
+    @Test
+    void hierarchyOfUntrackedFolders() throws GitException, IOException, GitAPIException {
+        Path tempDir = Files.createDirectory(repositoryPath.resolve("tempDir"));
+        Path tempSubDir = Files.createDirectory(tempDir.resolve("tempSubDir"));
+        Path tempSubSubDir = Files.createFile(tempSubDir.resolve("tempSubSubDir"));
+        assertTrue(gitStatus.hasUntrackedFolders());
+        assertEquals(1, gitStatus.getUntrackedFolders().size(),
+                "only the parent directory should appear in the list");
     }
 }
