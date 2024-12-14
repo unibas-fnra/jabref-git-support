@@ -23,6 +23,7 @@ import org.jabref.gui.actions.SimpleCommand;
 import org.jabref.gui.autosaveandbackup.BackupManager;
 import org.jabref.gui.collab.DatabaseChangeMonitor;
 import org.jabref.gui.dialogs.BackupUIManager;
+import org.jabref.gui.git.PassphrasePrompter;
 import org.jabref.gui.preferences.GuiPreferences;
 import org.jabref.gui.shared.SharedDatabaseUIManager;
 import org.jabref.gui.undo.CountingUndoManager;
@@ -319,8 +320,8 @@ public class OpenDatabaseAction extends SimpleCommand {
         if (changeMonitor == null) {
             LOGGER.warn("database does not have a change monitor.");
         }
+        PassphrasePrompter.promptIfNeeded(gitManager, preferences.getGitPreferences(), dialogService);
 
-        gitManager.promptForPassphraseIfNeeded(dialogService);
         try {
             optionalChangeMonitor.ifPresent(DatabaseChangeMonitor::unregister);
             gitManager.update();
