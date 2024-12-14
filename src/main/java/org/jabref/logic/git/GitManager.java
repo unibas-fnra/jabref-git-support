@@ -80,8 +80,7 @@ public class GitManager {
     }
 
     public void synchronize(Path filePath) throws GitException {
-        Set<Path> untrackedFiles = gitStatus.getUntrackedFiles();
-        if (!untrackedFiles.contains(filePath)) {
+        if (!hasUncommittedChanges(filePath)) {
             LOGGER.debug("No changes detected in {}. Skipping git operations.", path);
             throw new GitException("No changes detected in bib file. Skipping git operations.",
                     Localization.lang("No changes detected in bib file. Skipping git operations."));
@@ -121,6 +120,11 @@ public class GitManager {
             throw new GitConflictException("Git pull resulted in conflicts. Please resolve manually.",
                     Localization.lang("Git pull resulted in conflicts. Please resolve manually."));
         }
+    }
+
+    public boolean hasUncommittedChanges(Path filePath) throws GitException {
+        Set<Path> untrackedFiles = gitStatus.getUntrackedFiles();
+        return untrackedFiles.contains(filePath);
     }
 
     /**
