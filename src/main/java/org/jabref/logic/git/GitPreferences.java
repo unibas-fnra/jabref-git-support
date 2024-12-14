@@ -16,7 +16,6 @@ public class GitPreferences {
     private final SimpleStringProperty sshDirPath;
     private final SimpleStringProperty pushFrequency;
     private final BooleanProperty sshKeyEncrypted;
-    private final BooleanProperty hostKeyCheckDisabled;
     private final BooleanProperty pushFrequencyEnabled;
 
     public GitPreferences(boolean gitEnabled,
@@ -25,7 +24,6 @@ public class GitPreferences {
                           boolean passwordEncrypted,
                           String sshDirPath,
                           boolean sshKeyEncrypted,
-                          boolean hostKeyCheckDisabled,
                           boolean pushFrequencyEnabled,
                           String pushFrequency) {
         this.gitEnabled = new SimpleBooleanProperty(gitEnabled);
@@ -33,7 +31,6 @@ public class GitPreferences {
         this.username = new SimpleStringProperty(username != null ? username : ""); // Default to empty if null
         this.sshDirPath = new SimpleStringProperty(sshDirPath);
         this.password = new SimpleStringProperty(password);
-        this.hostKeyCheckDisabled = new SimpleBooleanProperty(hostKeyCheckDisabled);
         this.passwordEncrypted = new SimpleBooleanProperty(passwordEncrypted);
         this.sshKeyEncrypted = new SimpleBooleanProperty(sshKeyEncrypted);
         this.pushFrequency = new SimpleStringProperty(pushFrequency);
@@ -97,18 +94,6 @@ public class GitPreferences {
 
     public void setGitEnabled(boolean gitEnabled) {
         this.gitEnabled.set(gitEnabled);
-    }
-
-    public boolean isHostKeyCheckDisabled() {
-        return hostKeyCheckDisabled.getValue();
-    }
-
-    public void setHostKeyCheckDisabled(boolean hostKeyCheckDisabled) {
-        this.hostKeyCheckDisabled.set(hostKeyCheckDisabled);
-    }
-
-    public BooleanProperty getHostKeyCheckDisabledProperty() {
-        return hostKeyCheckDisabled;
     }
 
     public boolean isPushFrequencyEnabled() {

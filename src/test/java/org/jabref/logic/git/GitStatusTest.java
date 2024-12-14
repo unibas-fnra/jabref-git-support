@@ -39,7 +39,7 @@ class GitStatusTest {
         repositoryPath = temporaryRepository;
         gitPreferences = new GitPreferences(true, "username",
                 new Password("password".toCharArray(), "username").encrypt(), false,
-                "", false, false, false, "1");
+                "", false, false, "1");
         gitStatus = new GitStatus(git);
         gitActionExecutor = new GitActionExecutor(git, new GitAuthenticator(gitPreferences), gitStatus);
     }

@@ -378,7 +378,6 @@ public class JabRefCliPreferences implements CliPreferences {
     private static final String GIT_SSH_KEY_ENCRYPTED = "gitSshKeyEncrypted";
     private static final String GIT_SSH_DIR_PATH = "gitSshPath";
     private static final String GIT_PUSH_FREQUENCY = "pushfrequency";
-    private static final String GIT_SHH_HOST_KEY_CHECK_DISABLED = "gitSshHostKeyCheckDisabled";
     private static final String GIT_PUSH_FREQUENCY_ENABLED = "gitPushFrequencyEnabled";
 
     private static final Logger LOGGER = LoggerFactory.getLogger(JabRefCliPreferences.class);
@@ -670,10 +669,8 @@ public class JabRefCliPreferences implements CliPreferences {
 
         // region: Git
         defaults.put(GIT_ENABLED, Boolean.FALSE);
-        defaults.put(GIT_SHH_HOST_KEY_CHECK_DISABLED, Boolean.FALSE);
         defaults.put(GIT_PASSWORD_ENCRYPTED, Boolean.FALSE);
-        // TODO: set to false after testing
-        defaults.put(GIT_SSH_KEY_ENCRYPTED, Boolean.TRUE);
+        defaults.put(GIT_SSH_KEY_ENCRYPTED, Boolean.FALSE);
         defaults.put(GIT_PUSH_FREQUENCY_ENABLED, Boolean.FALSE);
         // endregion
     }
@@ -865,7 +862,6 @@ public class JabRefCliPreferences implements CliPreferences {
                 getBoolean(GIT_PASSWORD_ENCRYPTED),
                 get(GIT_SSH_DIR_PATH),
                 getBoolean(GIT_SSH_KEY_ENCRYPTED),
-                getBoolean(GIT_SHH_HOST_KEY_CHECK_DISABLED),
                 getBoolean(GIT_PUSH_FREQUENCY_ENABLED),
                 get(GIT_PUSH_FREQUENCY)
         );
@@ -882,8 +878,6 @@ public class JabRefCliPreferences implements CliPreferences {
                 (obs, oldValue, newValue) -> put(GIT_PUSH_FREQUENCY, newValue));
         EasyBind.listen(gitPreferences.getPasswordProperty(),
                 (obs, oldValue, newValue) -> put(GIT_PASSWORD, newValue));
-        EasyBind.listen(gitPreferences.getHostKeyCheckDisabledProperty(),
-                (obs, oldValue, newValue) -> putBoolean(GIT_SHH_HOST_KEY_CHECK_DISABLED, newValue));
         EasyBind.listen(gitPreferences.getPasswordEncryptedProperty(),
                 (obs, oldValue, newValue) -> putBoolean(GIT_PASSWORD_ENCRYPTED, newValue));
         EasyBind.listen(gitPreferences.getSshKeyEncryptedProperty(),

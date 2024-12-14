@@ -52,7 +52,7 @@ class GitActionExecutorTest {
     void setUp(@TempDir Path temporaryRepository) throws GitException, GeneralSecurityException, UnsupportedEncodingException {
         gitPreferences = new GitPreferences(true, "username",
                 new Password("password".toCharArray(), "username").encrypt(), false,
-                "", false, false, false, "1");
+                "", false, false, "1");
         this.repositoryPath = temporaryRepository;
         this.gitManager = GitManager.initGitRepository(repositoryPath, gitPreferences);
         this.gitActionExecutor = this.gitManager.getGitActionExecutor();
