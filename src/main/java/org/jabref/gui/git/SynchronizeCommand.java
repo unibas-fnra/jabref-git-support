@@ -1,4 +1,4 @@
-package org.jabref.logic.git;
+package org.jabref.gui.git;
 
 import java.nio.file.Path;
 import java.util.Optional;
@@ -13,6 +13,9 @@ import org.jabref.gui.actions.ActionHelper;
 import org.jabref.gui.actions.SimpleCommand;
 import org.jabref.gui.collab.DatabaseChangeMonitor;
 import org.jabref.gui.util.OptionalObjectProperty;
+import org.jabref.logic.git.GitException;
+import org.jabref.logic.git.GitManager;
+import org.jabref.logic.git.GitPreferences;
 import org.jabref.logic.l10n.Localization;
 import org.jabref.model.database.BibDatabaseContext;
 
@@ -25,14 +28,17 @@ public class SynchronizeCommand extends SimpleCommand {
     private static final Logger LOGGER = LoggerFactory.getLogger(SynchronizeCommand.class);
     private final Supplier<LibraryTab> tabSupplier;
     private final DialogService dialogService;
+    private final GitPreferences gitPreferences;
 
     public SynchronizeCommand(Supplier<LibraryTab> tabSupplier,
                               DialogService dialogService,
-                              StateManager stateManager) {
+                              StateManager stateManager,
+                              GitPreferences gitPreferences) {
         this.tabSupplier = tabSupplier;
         this.dialogService = dialogService;
         this.executable.bind(ActionHelper.needsDatabase(stateManager)
                                          .and(SynchronizeCommand.existsInGitRepository(stateManager)));
+        this.gitPreferences = gitPreferences;
     }
 
     /**
@@ -59,7 +65,7 @@ public class SynchronizeCommand extends SimpleCommand {
             return;
         }
 
-        optionalGitManager.get().promptForPassphraseIfNeeded(dialogService);
+        PassphrasePrompter.promptIfNeeded(optionalGitManager.get(), gitPreferences, dialogService);
         try {
             optionalChangeMonitor.ifPresent(DatabaseChangeMonitor::unregister);
 
@@ -71,7 +77,8 @@ public class SynchronizeCommand extends SimpleCommand {
 
             optionalChangeMonitor.ifPresent(DatabaseChangeMonitor::acceptChanges);
             dialogService.notify(Localization.lang("Library saved and pushed to remote."));
-        } catch (GitException e) {
+        } catch (
+                GitException e) {
             LOGGER.warn("Git error during save operation.", e);
             dialogService.notify(e.getLocalizedMessage());
         } finally {

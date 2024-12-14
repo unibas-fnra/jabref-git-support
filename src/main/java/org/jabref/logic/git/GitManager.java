@@ -8,7 +8,6 @@ import java.util.ArrayList;
 import java.util.Optional;
 import java.util.Set;
 
-import org.jabref.gui.DialogService;
 import org.jabref.logic.l10n.Localization;
 
 import org.eclipse.jgit.api.Git;
@@ -200,6 +199,18 @@ public class GitManager {
         return path;
     }
 
+    public GitProtocol getGitProtocol() {
+        return gitProtocol;
+    }
+
+    public static boolean isHttpAuthenticationVerified() {
+        return httpAuthenticationVerified;
+    }
+
+    public static boolean isSshAuthenticationVerified() {
+        return sshAuthenticationVerified;
+    }
+
     /**
      * determines the protocol used to communicate with origin.
      */
@@ -224,37 +235,5 @@ public class GitManager {
     private void updateAuthenticationStatus() {
         sshAuthenticationVerified = sshAuthenticationVerified || gitProtocol == GitProtocol.SSH;
         httpAuthenticationVerified = httpAuthenticationVerified || gitProtocol == GitProtocol.HTTPS;
-    }
-
-    /**
-     * Prompts the user for the passphrase of the SSH key or the password encryption key based on the git protocol.
-     * The prompt is skipped if the passphrase or password encryption key is already provided and a connection was
-     * successfully established using it. It is also skipped if the user did not encrypt the SSH key or the password.
-     *
-     * @param dialogService the dialog service used to prompt the user
-     */
-    public void promptForPassphraseIfNeeded(DialogService dialogService) {
-        switch (this.gitProtocol) {
-            case SSH:
-                if (preferences.isSshKeyEncrypted() && !sshAuthenticationVerified) {
-                    GitPreferences.setSshPassphrase(dialogService.showPasswordDialogAndWait(
-                            "SSH passphrase",
-                            "Enter passphrase for your specified SSH key",
-                            "SSH passphrase"
-                    ).orElse(null));
-                }
-                return;
-            case HTTPS:
-                if (preferences.isPasswordEncrypted() && !httpAuthenticationVerified) {
-                    GitPreferences.setPasswordEncryptionKey(dialogService.showPasswordDialogAndWait(
-                            "password encryption key",
-                            "Enter password encryption key",
-                            ""
-                    ).orElse(null));
-                }
-                return;
-            default:
-                break;
-        }
     }
 }

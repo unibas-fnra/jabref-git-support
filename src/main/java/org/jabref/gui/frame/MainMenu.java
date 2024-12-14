@@ -36,6 +36,7 @@ import org.jabref.gui.exporter.WriteMetadataToLinkedPdfsAction;
 import org.jabref.gui.externalfiles.AutoLinkFilesAction;
 import org.jabref.gui.externalfiles.DownloadFullTextAction;
 import org.jabref.gui.externalfiles.FindUnlinkedFilesAction;
+import org.jabref.gui.git.SynchronizeCommand;
 import org.jabref.gui.help.AboutAction;
 import org.jabref.gui.help.ErrorConsoleAction;
 import org.jabref.gui.help.HelpAction;
@@ -73,7 +74,6 @@ import org.jabref.gui.undo.UndoAction;
 import org.jabref.gui.util.UiTaskExecutor;
 import org.jabref.logic.ai.AiService;
 import org.jabref.logic.citationstyle.CitationStyleOutputFormat;
-import org.jabref.logic.git.SynchronizeCommand;
 import org.jabref.logic.help.HelpFile;
 import org.jabref.logic.importer.IdFetcher;
 import org.jabref.logic.importer.WebFetchers;
@@ -157,7 +157,7 @@ public class MainMenu extends MenuBar {
                 factory.createMenuItem(StandardActions.CLOSE_LIBRARY, new JabRefFrame.CloseDatabaseAction(frame, stateManager)),
                 new SeparatorMenuItem(),
 
-                factory.createMenuItem(StandardActions.SYNCHRONIZE, new SynchronizeCommand(frame::getCurrentLibraryTab, dialogService, stateManager)),
+                factory.createMenuItem(StandardActions.SYNCHRONIZE, new SynchronizeCommand(frame::getCurrentLibraryTab, dialogService, stateManager, preferences.getGitPreferences())),
 
                 new SeparatorMenuItem(),
 

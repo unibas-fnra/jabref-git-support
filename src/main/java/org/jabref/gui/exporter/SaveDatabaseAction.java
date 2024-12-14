@@ -23,6 +23,7 @@ import org.jabref.gui.LibraryTab;
 import org.jabref.gui.autosaveandbackup.AutosaveManager;
 import org.jabref.gui.autosaveandbackup.BackupManager;
 import org.jabref.gui.collab.DatabaseChangeMonitor;
+import org.jabref.gui.git.PassphrasePrompter;
 import org.jabref.gui.maintable.BibEntryTableViewModel;
 import org.jabref.gui.maintable.columns.MainTableColumn;
 import org.jabref.gui.preferences.GuiPreferences;
@@ -336,7 +337,8 @@ public class SaveDatabaseAction {
             LOGGER.warn("database does not have a change monitor.");
         }
 
-        optionalGitManager.get().promptForPassphraseIfNeeded(dialogService);
+        PassphrasePrompter.promptIfNeeded(optionalGitManager.get(), preferences.getGitPreferences(), dialogService);
+
         try {
             optionalChangeMonitor.ifPresent(DatabaseChangeMonitor::unregister);
             optionalGitManager.get().synchronize(filePath);
