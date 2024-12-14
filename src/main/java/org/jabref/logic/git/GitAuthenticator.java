@@ -61,19 +61,6 @@ class GitAuthenticator {
                         return GitPreferences.getSshPassphrase().orElse("").toCharArray();
                     }
                 });
-//        TODO: modify after resolving getResource issue
-//        if (preferences.isHostKeyCheckDisabled()) {
-//            getSshConfigFile().ifPresent(file -> sshdSessionFactoryBuilder.setConfigFile(f -> file));
-//        }
         sshTransport.setSshSessionFactory(sshdSessionFactoryBuilder.build(null));
     }
-
-//    TODO: using getResource is not allowed
-//    private Optional<File> getSshConfigFile() {
-//        URL sshConfigURL = this.getClass().getResource("ssh-config");
-//        if (sshConfigURL == null) {
-//            return Optional.empty();
-//        }
-//        return Optional.of(new File(sshConfigURL.getFile()));
-//    }
 }

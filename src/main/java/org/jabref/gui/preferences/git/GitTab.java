@@ -19,7 +19,6 @@ public class GitTab extends AbstractPreferenceTabView<GitViewModel> implements P
     private static int maxFrequency = 100;
 
     @FXML private CheckBox enableGitSupport;
-    @FXML private CheckBox hostKeyCheck;
     @FXML private CheckBox pushFrequency;
     @FXML private TextField sshPath;
     @FXML private TextField pushFrequencyInput;
@@ -80,7 +79,6 @@ public class GitTab extends AbstractPreferenceTabView<GitViewModel> implements P
         pushFrequencyInput.disableProperty().bind(enableGitSupport.selectedProperty().not());
 
         sshPath.textProperty().bindBidirectional(viewModel.sshPathProperty());
-        // hostKeyCheck.selectedProperty().bindBidirectional(viewModel.getHostKeyCheckProperty());
         sshEncrypted.selectedProperty().bindBidirectional(viewModel.getSshEncryptedProperty());
         pushFrequency.selectedProperty().bindBidirectional(viewModel.getFrequencyLabelEnabledProperty());
         pushFrequencyInput.textProperty().bindBidirectional(viewModel.getPushFrequency());
