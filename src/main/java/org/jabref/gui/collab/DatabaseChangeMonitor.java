@@ -118,26 +118,24 @@ public class DatabaseChangeMonitor implements FileUpdateListener {
         listeners.add(listener);
     }
 
-    public void acceptChanges(DatabaseChangeMonitor changeMonitor) {
-        if (changeMonitor != null) {
-            ChangeScanner scanner = new ChangeScanner(database, dialogService, preferences);
-            List<DatabaseChange> changes = scanner.scanForChanges();
+    public void acceptChanges() {
+        ChangeScanner scanner = new ChangeScanner(database, dialogService, preferences);
+        List<DatabaseChange> changes = scanner.scanForChanges();
 
-            if (!changes.isEmpty()) {
-                LOGGER.info("Detected changes: {}", changes);
-                changeMonitor.pendingChanges = changes;
+        if (changes.isEmpty()) {
+            LOGGER.info("Detected changes: {}", changes);
+            pendingChanges = changes;
 
-                NamedCompound ce = new NamedCompound("Merged external changes");
-                pendingChanges.forEach(change -> {
-                    change.accept();
-                    change.applyChange(ce);
-                });
-                ce.end();
-                saveState = stateManager.activeTabProperty().get().get();
-                saveState.resetChangedProperties();
-            } else {
-                LOGGER.info("No changes detected after Git update.");
-            }
+            NamedCompound ce = new NamedCompound("Merged external changes");
+            pendingChanges.forEach(change -> {
+                change.accept();
+                change.applyChange(ce);
+            });
+            ce.end();
+            saveState = stateManager.activeTabProperty().get().get();
+            saveState.resetChangedProperties();
+        } else {
+            LOGGER.info("No changes detected after Git update.");
         }
     }
 
