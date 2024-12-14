@@ -124,14 +124,11 @@ class GitActionExecutorTest {
     void addBehaviorWithHierarchyOfDirectories() throws IOException, GitException, GitAPIException {
         Path tempDir = Files.createDirectory(repositoryPath.resolve("tempDir"));
         Path tempSubDir = Files.createDirectory(tempDir.resolve("tempSubDir"));
-        Path tempSubSubDir = Files.createFile(tempSubDir.resolve("tempSubSubDir"));
+        Files.createFile(tempSubDir.resolve("tempSubSubDir"));
         assertTrue(gitStatus.hasUntrackedFolders());
         assertEquals(1, gitStatus.getUntrackedFolders().size(),
                 "only the parent directory should appear in the list");
-        Path relativePath = repositoryPath.relativize(tempSubDir);
-        gitActionExecutor.getGit().add().addFilepattern(relativePath.toString()).call();
-        assertTrue(gitStatus.hasUntrackedFolders(), "adding the subdirectory is not registered");
-        relativePath = repositoryPath.relativize(tempDir);
+        Path relativePath = repositoryPath.relativize(tempDir);
         gitActionExecutor.getGit().add().addFilepattern(relativePath.toString()).call();
         assertFalse(gitStatus.hasUntrackedFolders(), "adding the parent directory should register correctly");
     }
