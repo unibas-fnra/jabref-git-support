@@ -157,6 +157,10 @@ public class MainMenu extends MenuBar {
                 factory.createMenuItem(StandardActions.CLOSE_LIBRARY, new JabRefFrame.CloseDatabaseAction(frame, stateManager)),
                 new SeparatorMenuItem(),
 
+                factory.createMenuItem(StandardActions.SYNCHRONIZE, new SynchronizeCommand(frame::getCurrentLibraryTab, dialogService, stateManager)),
+
+                new SeparatorMenuItem(),
+
                 factory.createSubMenu(StandardActions.IMPORT,
                         factory.createMenuItem(StandardActions.IMPORT_INTO_CURRENT_LIBRARY, new ImportCommand(frame, ImportCommand.ImportMethod.TO_EXISTING, preferences, stateManager, fileUpdateMonitor, taskExecutor, dialogService)),
                         factory.createMenuItem(StandardActions.IMPORT_INTO_NEW_LIBRARY, new ImportCommand(frame, ImportCommand.ImportMethod.AS_NEW, preferences, stateManager, fileUpdateMonitor, taskExecutor, dialogService))),
@@ -178,12 +182,8 @@ public class MainMenu extends MenuBar {
 
                 new SeparatorMenuItem(),
 
-                factory.createMenuItem(StandardActions.QUIT, new JabRefFrame.CloseAction(frame)),
+                factory.createMenuItem(StandardActions.QUIT, new JabRefFrame.CloseAction(frame))
 
-                new SeparatorMenuItem(),
-
-                // change second argument
-                factory.createMenuItem(StandardActions.SYNCHRONIZE, new SynchronizeCommand())
         );
 
         edit.getItems().addAll(
