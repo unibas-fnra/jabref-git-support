@@ -216,21 +216,11 @@ public class OpenDatabaseAction extends SimpleCommand {
                 taskExecutor);
         tabContainer.addTab(newTab, true);
         if (newTab.getBibDatabaseContext().isInGitRepository() && preferences.getGitPreferences().isGitEnabled()) {
-            handleGitOperationsForTab(newTab, file);
+            Platform.runLater(() -> {
+                updateGitRepo(newTab.getGitManager().orElse(null),
+                        newTab.getChangeMonitor().orElse(null));
+            });
         }
-    }
-
-    private void handleGitOperationsForTab(LibraryTab newTab, Path file) {
-        newTab.getGitManager().ifPresent(gitManager -> Platform.runLater(() -> {
-            try {
-                newTab.getChangeMonitor().ifPresentOrElse(
-                        changeMonitor -> updateGitRepo(gitManager, changeMonitor, newTab, file),
-                        () -> updateGitRepo(gitManager, null, newTab, file)
-                );
-            } catch (Exception e) {
-                LOGGER.error("Error while updating Git repository for file {}", file, e);
-            }
-        }));
     }
 
     private ParserResult loadDatabase(Path file) throws Exception {
@@ -319,27 +309,28 @@ public class OpenDatabaseAction extends SimpleCommand {
         }
     }
 
-    private void updateGitRepo(GitManager gitManager, DatabaseChangeMonitor changeMonitor, LibraryTab newTab, Path file) {
+    private void updateGitRepo(GitManager gitManager, DatabaseChangeMonitor changeMonitor) {
         if (gitManager == null) {
             LOGGER.warn("GitManager has not been initialized.");
             return;
         }
+
+        Optional<DatabaseChangeMonitor> optionalChangeMonitor = Optional.ofNullable(changeMonitor);
         if (changeMonitor == null) {
-            LOGGER.error("..");
-            return;
+            LOGGER.warn("database does not have a change monitor.");
         }
 
+        gitManager.promptForPassphraseIfNeeded(dialogService);
         try {
-            changeMonitor.unregister();
-            gitManager.promptForPassphraseIfNeeded(dialogService);
+            optionalChangeMonitor.ifPresent(DatabaseChangeMonitor::unregister);
             gitManager.update();
+            optionalChangeMonitor.ifPresent(DatabaseChangeMonitor::acceptChanges);
             LOGGER.info("Git pull operation completed successfully.");
-            changeMonitor.acceptChanges(changeMonitor);
         } catch (GitException e) {
             LOGGER.warn("Error performing git pull for git repo {}", gitManager.getPath(), e);
             dialogService.notify(Localization.lang("Failed to pull changes: %0", e.getLocalizedMessage()));
         } finally {
-            changeMonitor.register();
+            optionalChangeMonitor.ifPresent(DatabaseChangeMonitor::register);
         }
     }
 }
