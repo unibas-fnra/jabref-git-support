@@ -122,7 +122,7 @@ public class DatabaseChangeMonitor implements FileUpdateListener {
         ChangeScanner scanner = new ChangeScanner(database, dialogService, preferences);
         List<DatabaseChange> changes = scanner.scanForChanges();
 
-        if (changes.isEmpty()) {
+        if (!changes.isEmpty()) {
             LOGGER.info("Detected changes: {}", changes);
             pendingChanges = changes;
 
