@@ -22,6 +22,7 @@ import org.jabref.gui.DialogService;
 import org.jabref.gui.LibraryTab;
 import org.jabref.gui.autosaveandbackup.AutosaveManager;
 import org.jabref.gui.autosaveandbackup.BackupManager;
+import org.jabref.gui.collab.DatabaseChangeMonitor;
 import org.jabref.gui.maintable.BibEntryTableViewModel;
 import org.jabref.gui.maintable.columns.MainTableColumn;
 import org.jabref.gui.preferences.GuiPreferences;
@@ -241,7 +242,7 @@ public class SaveDatabaseAction {
                 libraryTab.resetChangedProperties();
 
                 if (libraryTab.getBibDatabaseContext().isInGitRepository()) {
-                    pushToGitIfNeeded(targetPath);
+                    pushToGitIfNeeded(targetPath, libraryTab.getChangeMonitor().orElse(null));
                 }
             }
             dialogService.notify(Localization.lang("Library saved"));
@@ -318,26 +319,34 @@ public class SaveDatabaseAction {
         }
     }
 
-    private void pushToGitIfNeeded(Path filePath) {
+    private void pushToGitIfNeeded(Path filePath, DatabaseChangeMonitor changeMonitor) {
         Optional<GitManager> optionalGitManager = libraryTab.getGitManager();
         if (optionalGitManager.isEmpty()) {
             LOGGER.debug("{} is not in a git repository", filePath);
             return;
         }
+        LOGGER.debug("File is in a git repository");
 
         if (!optionalGitManager.get().shouldSynchronize()) {
             return;
         }
 
-        LOGGER.debug("File is in a git repository");
+        Optional<DatabaseChangeMonitor> optionalChangeMonitor = Optional.ofNullable(changeMonitor);
+        if (changeMonitor != null) {
+            LOGGER.warn("database does not have a change monitor.");
+        }
+
+        optionalGitManager.get().promptForPassphraseIfNeeded(dialogService);
         try {
-            optionalGitManager.get().promptForPassphraseIfNeeded(dialogService);
-            // TODO: disable file listener while synchronizing
+            optionalChangeMonitor.ifPresent(DatabaseChangeMonitor::unregister);
             optionalGitManager.get().synchronize(filePath);
+            optionalChangeMonitor.ifPresent(DatabaseChangeMonitor::acceptChanges);
             dialogService.notify(Localization.lang("Library saved and pushed to remote."));
         } catch (GitException e) {
             LOGGER.warn("Git error during save operation.", e);
             dialogService.notify(e.getLocalizedMessage());
+        } finally {
+            optionalChangeMonitor.ifPresent(DatabaseChangeMonitor::register);
         }
     }
 }
