@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Optional;
 import java.util.Set;
 
+import org.jabref.gui.git.PassphrasePrompter;
 import org.jabref.logic.l10n.Localization;
 
 import org.eclipse.jgit.api.Git;
@@ -20,6 +21,16 @@ import org.eclipse.jgit.transport.Transport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * This class represents a git repository. It uses {@link GitActionExecutor} and {@link GitStatus} to provide
+ * a high-level interface to handle pulling and pushing individual files without disturbing the state of the repository.
+ * <br>
+ * It also keeps track of the authentication status of the user. Before any methods are called, the user must be
+ * prompted to enter their passphrase. Once a git operation is successful, the authentication status is set to true.
+ * which can be used to determine if the user has entered the correct passphrase.
+ *
+ * @see PassphrasePrompter
+ */
 public class GitManager {
     private final static Logger LOGGER = LoggerFactory.getLogger(GitManager.class);
     private final static String DEFAULT_COMMIT_MESSAGE = "Automatic update via JabRef";
@@ -78,6 +89,15 @@ public class GitManager {
         return true;
     }
 
+    /**
+     * Adds and Commits the given file after the emptying the staging area by unstaging all files. Then pulls and
+     * pushes the changes to the remote repository. If the given file is in a newly created subdirectory, all the
+     * content of the subdirectory is added instead.
+     *
+     * @param filePath the path to the file to be synchronized.
+     * @throws GitException if no changes were detected in the file, if the pull operation resulted in conflicts or
+     *                      if the push operation failed.
+     */
     public void synchronize(Path filePath) throws GitException {
         if (!hasUncommittedChanges(filePath)) {
             LOGGER.debug("No changes detected in {}. Skipping git operations.", path);
@@ -98,6 +118,11 @@ public class GitManager {
         updateAuthenticationStatus();
     }
 
+    /**
+     * Pulls the changes from the remote repository. If the pull operation results in conflicts, the changes are undone.
+     *
+     * @throws GitException if the pull operation resulted in conflicts or pull operation failed for some other reason.
+     */
     public void update() throws GitException {
         try {
             gitActionExecutor.pull(true);
@@ -121,6 +146,9 @@ public class GitManager {
         }
     }
 
+    /**
+     * Checks if the given file has uncommitted changes.
+     */
     public boolean hasUncommittedChanges(Path filePath) throws GitException {
         Set<Path> untrackedFiles = gitStatus.getUntrackedFiles();
         return untrackedFiles.contains(filePath);
