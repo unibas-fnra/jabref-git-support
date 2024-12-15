@@ -24,15 +24,36 @@ class GitAuthenticator {
     private static final Path HOME_DIRECTORY = Path.of(Optional.of(System.getProperty("user.home")).orElse(""));
     private final GitPreferences preferences;
 
+    /**
+     * This class is responsible for authenticating git commands with the credentials provided in the preferences.
+     * <br>
+     *
+     * Usage:
+     * <pre>
+     *     GitAuthenticator authenticator = new GitAuthenticator(preferences);
+     *     PullCommand pullCommand = git.pull();
+     *     authenticator.authenticate(pullCommand);
+     *     pullCommand.call();
+     * </pre>
+     */
     GitAuthenticator(GitPreferences preferences) {
         this.preferences = preferences;
     }
 
+    /**
+     * Authenticates the given transport command with the credentials provided in the preferences.
+     * Both HTTPS and SSH configurations are added to the command. JGit will automatically choose the correct
+     * configuration based on the repository URL.
+     */
     <Command extends TransportCommand<Command, ?>> void authenticate(Command transportCommand) {
         transportCommand.setCredentialsProvider(getCredentialsProvider());
         transportCommand.setTransportConfigCallback(this::transportConfigCallback);
     }
 
+    /**
+     * fetches the credentials from the preferences. If the password is encrypted, the encryption key
+     * must be set in the preferences dynamically in run time before calling this method.
+     */
     private CredentialsProvider getCredentialsProvider() {
         String password = preferences.getPassword().orElse("");
         try {
@@ -46,6 +67,11 @@ class GitAuthenticator {
         return new UsernamePasswordCredentialsProvider(preferences.getUsername().orElse(""), password);
     }
 
+    /**
+     * Configures the SSH transport with the necessary settings based on the information provided in the preferences.
+     * If the SSH key is encrypted, the passphrase must be set in the preferences dynamically in run time
+     * before calling this method.
+     */
     private void transportConfigCallback(Transport transport) {
         if (!(transport instanceof SshTransport sshTransport)) {
             LOGGER.debug("git repository does not use a SSH protocol");

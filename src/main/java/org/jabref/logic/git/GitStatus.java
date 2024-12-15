@@ -11,12 +11,12 @@ import org.eclipse.jgit.api.ListBranchCommand;
 import org.eclipse.jgit.api.Status;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.lib.Ref;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+/**
+ * This class is responsible for getting the status of a git repository. Its methods do not change the state
+ * of the repository in any way.
+ */
 class GitStatus {
-
-    private final static Logger LOGGER = LoggerFactory.getLogger(GitStatus.class);
 
     private final Git git;
     private final Path repository;
@@ -44,6 +44,10 @@ class GitStatus {
         return !getUntrackedFiles().isEmpty();
     }
 
+    /**
+     *
+     * @return a set of paths to the modified and newly added files in the repository.
+     */
     Set<Path> getUntrackedFiles() throws GitException {
         Status status;
         try {
@@ -64,6 +68,10 @@ class GitStatus {
         return !getTrackedFiles().isEmpty();
     }
 
+    /**
+     *
+     * @return a set of paths to the added and changed files in the repository.
+     */
     Set<Path> getTrackedFiles() throws GitException {
         Status status;
         try {
@@ -84,6 +92,11 @@ class GitStatus {
         return !getUntrackedFolders().isEmpty();
     }
 
+    /**
+     *
+     * @return a set of paths to the untracked folders in the repository. If multiple folders are nested,
+     * only the top-level folder is returned.
+     */
     Set<Path> getUntrackedFolders() throws GitException {
         Status status;
         try {

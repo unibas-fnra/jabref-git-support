@@ -18,6 +18,9 @@ import org.eclipse.jgit.lib.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * This class is responsible for executing git actions on a repository.
+ */
 class GitActionExecutor {
 
     private final static Logger LOGGER = LoggerFactory.getLogger(GitActionExecutor.class);
@@ -71,6 +74,9 @@ class GitActionExecutor {
             }
     }
 
+    /**
+     * Commits the staged changes with the given message.
+     */
     void commit(String message, boolean append) throws GitException {
         try {
             git.commit().setMessage(message).setAmend(append).call();
@@ -80,6 +86,13 @@ class GitActionExecutor {
         }
     }
 
+    /**
+     * Pushes the changes to the remote repository.
+     *
+     * @param remote the remote repository to push to. If null, the default remote is used.
+     * @param branch the branch to push to. If null, the current branch is used.
+     * @throws GitException if the push operation fails
+     */
     void push(String remote, String branch) throws GitException {
         try {
             PushCommand pushCommand = git.push();
@@ -95,6 +108,9 @@ class GitActionExecutor {
         }
     }
 
+    /**
+     * calls {@link #push(String, String)} with default remote and current branch
+     */
     void push() throws GitException {
         push(null, null);
     }
@@ -138,7 +154,6 @@ class GitActionExecutor {
         }
     }
 
-    // TODO: test this
     /**
      * calls {@link #pull(boolean, String, String)} with default remote and current branch
      */
